@@ -1,5 +1,8 @@
+import asyncio
 import logging
 import os
+from aiohttp import web
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -9,9 +12,8 @@ from telegram.ext import (
     TypeHandler,
     filters,
 )
-from telegram import Update
 
-import config  # validates env vars on import
+import config
 from bot.middleware import check_approved
 from bot.handlers.start import start, help_command
 from bot.handlers.tree import view_tree
@@ -33,10 +35,12 @@ from bot.states import (
 )
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 PORT = int(os.getenv("PORT", 8080))
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
-IS_CLOUD_RUN = bool(os.getenv("K_SERVICE"))  # Cloud Run sets this automatically
+IS_CLOUD_RUN = bool(os.getenv("K_SERVICE"))
+SECRET_TOKEN = config.TELEGRAM_BOT_TOKEN.replace(":", "_")
 
 
 def build_app() -> Application:
@@ -87,7 +91,6 @@ def build_app() -> Application:
         fallbacks=[MessageHandler(filters.Regex("^❌ Batal$"), link_cancel)],
     )
 
-    # User commands
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.Regex("^🌳 Lihat Pohon$"), view_tree))
@@ -97,7 +100,6 @@ def build_app() -> Application:
     app.add_handler(search_conv)
     app.add_handler(link_conv)
 
-    # Admin commands
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("daftarkan", cmd_daftarkan))
     app.add_handler(CommandHandler("cabut", cmd_cabut))
@@ -109,24 +111,53 @@ def build_app() -> Application:
     return app
 
 
+async def run_webhook_server(ptb_app: Application):
+    async def telegram_handler(request: web.Request) -> web.Response:
+        token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if token != SECRET_TOKEN:
+            return web.Response(status=403)
+        data = await request.json()
+        update = Update.de_json(data, ptb_app.bot)
+        await ptb_app.process_update(update)
+        return web.Response(status=200)
+
+    async def health(request: web.Request) -> web.Response:
+        return web.Response(text="ok")
+
+    web_app = web.Application()
+    web_app.router.add_post("/telegram", telegram_handler)
+    web_app.router.add_get("/health", health)
+
+    await ptb_app.initialize()
+    await ptb_app.start()
+
+    if WEBHOOK_URL:
+        await ptb_app.bot.set_webhook(
+            url=WEBHOOK_URL,
+            secret_token=SECRET_TOKEN,
+            allowed_updates=Update.ALL_TYPES,
+        )
+        logger.info(f"Webhook terdaftar: {WEBHOOK_URL}")
+    else:
+        logger.info("WEBHOOK_URL belum diset — server berjalan tanpa registrasi webhook")
+
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    logger.info(f"Server berjalan di port {PORT}")
+
+    await asyncio.Event().wait()
+
+
 def main():
-    app = build_app()
+    ptb_app = build_app()
 
     if IS_CLOUD_RUN or WEBHOOK_URL:
-        webhook_kwargs = {
-            "listen": "0.0.0.0",
-            "port": PORT,
-            "secret_token": config.TELEGRAM_BOT_TOKEN.replace(":", "_"),
-        }
-        if WEBHOOK_URL:
-            webhook_kwargs["webhook_url"] = WEBHOOK_URL
-            logging.info(f"Bot berjalan dengan webhook: {WEBHOOK_URL}")
-        else:
-            logging.info("Cloud Run terdeteksi, menjalankan webhook server (URL belum dikonfigurasi)...")
-        app.run_webhook(**webhook_kwargs)
+        asyncio.run(run_webhook_server(ptb_app))
     else:
-        logging.info("Bot berjalan dengan polling...")
-        app.run_polling()
+        logger.info("Bot berjalan dengan polling...")
+        ptb_app.run_polling()
 
 
 if __name__ == "__main__":
