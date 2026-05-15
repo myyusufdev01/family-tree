@@ -19,6 +19,7 @@ from bot.handlers.start import start, help_command
 from bot.handlers.tree import view_tree
 from bot.handlers.member import (
     add_member_start, add_name, add_gender, add_birth, add_death, add_phone, add_notes,
+    add_rel_type, add_rel_target,
     edit_member_start, edit_select, edit_field, edit_value,
     list_members_cmd, cancel,
 )
@@ -30,6 +31,7 @@ from bot.handlers.admin import (
 )
 from bot.states import (
     ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES,
+    ADD_REL_TYPE, ADD_REL_TARGET,
     EDIT_SELECT, EDIT_FIELD, EDIT_VALUE,
     LINK_TYPE, LINK_MEMBER_A, LINK_MEMBER_B,
 )
@@ -58,6 +60,8 @@ def build_app() -> Application:
             ADD_DEATH: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_death)],
             ADD_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_phone)],
             ADD_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_notes)],
+            ADD_REL_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_rel_type)],
+            ADD_REL_TARGET: [CallbackQueryHandler(add_rel_target, pattern="^addrel:")],
         },
         fallbacks=[MessageHandler(filters.Regex("^❌ Batal$"), cancel)],
     )

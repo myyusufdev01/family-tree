@@ -1,13 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from models.member import Member
-from db.firestore import add_member, list_members, update_member, delete_member, get_member
+from db.firestore import (
+    add_member, list_members, update_member, get_member,
+    link_parent_child, link_spouses,
+)
 from bot.keyboards import (
     MAIN_MENU, GENDER_KEYBOARD, SKIP_KEYBOARD, CANCEL_KEYBOARD,
-    EDIT_FIELDS_KEYBOARD, member_list_keyboard
+    EDIT_FIELDS_KEYBOARD, ADD_REL_TYPE_KEYBOARD, member_list_keyboard,
 )
 from bot.states import (
     ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES,
+    ADD_REL_TYPE, ADD_REL_TARGET,
     EDIT_SELECT, EDIT_FIELD, EDIT_VALUE,
 )
 from utils.tree_renderer import render_member_relations
@@ -42,7 +46,10 @@ async def add_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Pilih salah satu:", reply_markup=GENDER_KEYBOARD)
         return ADD_GENDER
-    await update.message.reply_text("Tanggal lahir (cth: 1990-05-20), atau lewati:", reply_markup=SKIP_KEYBOARD)
+    await update.message.reply_text(
+        "Tanggal lahir (contoh: 1990-05-20), atau lewati:",
+        reply_markup=SKIP_KEYBOARD,
+    )
     return ADD_BIRTH
 
 
@@ -50,7 +57,10 @@ async def add_birth(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text != "⏭ Lewati":
         context.user_data["birth_date"] = text.strip()
-    await update.message.reply_text("Tanggal wafat (jika sudah meninggal), atau lewati:", reply_markup=SKIP_KEYBOARD)
+    await update.message.reply_text(
+        "Tanggal wafat (jika sudah meninggal), atau lewati:",
+        reply_markup=SKIP_KEYBOARD,
+    )
     return ADD_DEATH
 
 
@@ -87,13 +97,90 @@ async def add_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         notes=data.get("notes"),
     )
     member = add_member(user_id, member)
-    context.user_data.clear()
+    context.user_data["new_member_id"] = member.id
+    context.user_data["new_member_name"] = member.name
 
+    # Cek apakah ada anggota lain untuk dihubungkan
+    all_members = [m for m in list_members(user_id) if m.id != member.id]
+    if not all_members:
+        context.user_data.clear()
+        await update.message.reply_text(
+            f"✅ *{member.name}* berhasil ditambahkan!",
+            parse_mode="Markdown",
+            reply_markup=MAIN_MENU,
+        )
+        return ConversationHandler.END
+
+    context.user_data["linkable_members"] = all_members
     await update.message.reply_text(
-        f"✅ *{member.name}* berhasil ditambahkan!\n\n{member.summary()}",
+        f"✅ *{member.name}* berhasil ditambahkan!\n\n"
+        "Apakah anggota ini memiliki hubungan dengan anggota lain?\n"
+        "Pilih jenis hubungan:",
         parse_mode="Markdown",
-        reply_markup=MAIN_MENU,
+        reply_markup=ADD_REL_TYPE_KEYBOARD,
     )
+    return ADD_REL_TYPE
+
+
+async def add_rel_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "⏭ Lewati":
+        context.user_data.clear()
+        await update.message.reply_text("Selesai. Anggota disimpan tanpa hubungan.", reply_markup=MAIN_MENU)
+        return ConversationHandler.END
+
+    rel_map = {
+        "👨‍👧 Anak dari...": "child_of",
+        "👨‍👩‍👧 Orang tua dari...": "parent_of",
+        "💑 Pasangan dari...": "spouse_of",
+    }
+    rel = rel_map.get(text)
+    if not rel:
+        await update.message.reply_text("Pilih salah satu:", reply_markup=ADD_REL_TYPE_KEYBOARD)
+        return ADD_REL_TYPE
+
+    context.user_data["rel_type"] = rel
+    members = context.user_data["linkable_members"]
+
+    label_map = {
+        "child_of": "Pilih *orang tua* dari anggota ini:",
+        "parent_of": "Pilih *anak* dari anggota ini:",
+        "spouse_of": "Pilih *pasangan* dari anggota ini:",
+    }
+    await update.message.reply_text(
+        label_map[rel],
+        parse_mode="Markdown",
+        reply_markup=member_list_keyboard(members, "addrel"),
+    )
+    return ADD_REL_TARGET
+
+
+async def add_rel_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    target_id = query.data.split(":")[1]
+    user_id = update.effective_user.id
+    new_id = context.user_data["new_member_id"]
+    new_name = context.user_data["new_member_name"]
+    rel_type = context.user_data["rel_type"]
+
+    target = get_member(user_id, target_id)
+    target_name = target.name if target else "?"
+
+    if rel_type == "child_of":
+        link_parent_child(user_id, parent_id=target_id, child_id=new_id)
+        msg = f"✅ *{new_name}* ditetapkan sebagai anak dari *{target_name}*."
+    elif rel_type == "parent_of":
+        link_parent_child(user_id, parent_id=new_id, child_id=target_id)
+        msg = f"✅ *{new_name}* ditetapkan sebagai orang tua dari *{target_name}*."
+    else:
+        link_spouses(user_id, new_id, target_id)
+        msg = f"✅ *{new_name}* dan *{target_name}* ditetapkan sebagai pasangan."
+
+    context.user_data.clear()
+    await query.message.reply_text(msg, parse_mode="Markdown", reply_markup=MAIN_MENU)
     return ConversationHandler.END
 
 
@@ -103,7 +190,10 @@ async def list_members_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     members = list_members(user_id)
     if not members:
-        await update.message.reply_text("Belum ada anggota. Gunakan ➕ Tambah Anggota.", reply_markup=MAIN_MENU)
+        await update.message.reply_text(
+            "Belum ada anggota. Gunakan ➕ Tambah Anggota.",
+            reply_markup=MAIN_MENU,
+        )
         return
 
     lines = ["📋 *Daftar Anggota Keluarga*\n"]
@@ -114,7 +204,11 @@ async def list_members_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             line += f" ({m.birth_date})"
         lines.append(line)
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown", reply_markup=MAIN_MENU)
+    await update.message.reply_text(
+        "\n".join(lines),
+        parse_mode="Markdown",
+        reply_markup=MAIN_MENU,
+    )
 
 
 # ---- EDIT MEMBER FLOW ----
@@ -171,7 +265,11 @@ async def edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if field == "gender":
         await update.message.reply_text("Pilih jenis kelamin baru:", reply_markup=GENDER_KEYBOARD)
     else:
-        await update.message.reply_text(f"Masukkan nilai baru untuk *{text}*:", parse_mode="Markdown", reply_markup=CANCEL_KEYBOARD)
+        await update.message.reply_text(
+            f"Masukkan nilai baru untuk *{text}*:",
+            parse_mode="Markdown",
+            reply_markup=CANCEL_KEYBOARD,
+        )
     return EDIT_VALUE
 
 

@@ -8,18 +8,20 @@ from telegram.ext import ConversationHandler
     ADD_DEATH,
     ADD_PHONE,
     ADD_NOTES,
-) = range(6)
+    ADD_REL_TYPE,
+    ADD_REL_TARGET,
+) = range(8)
 
 # Edit member states
 (
     EDIT_SELECT,
     EDIT_FIELD,
     EDIT_VALUE,
-) = range(6, 9)
+) = range(8, 11)
 
 # Link relation states
 (
     LINK_TYPE,
     LINK_MEMBER_A,
     LINK_MEMBER_B,
-) = range(9, 12)
+) = range(11, 14)

@@ -34,6 +34,15 @@ LINK_TYPE_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=True,
 )
 
+ADD_REL_TYPE_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["👨‍👧 Anak dari...", "👨‍👩‍👧 Orang tua dari..."],
+        ["💑 Pasangan dari...", "⏭ Lewati"],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
 EDIT_FIELDS_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["Nama", "Jenis Kelamin"],
