@@ -1,31 +1,24 @@
-from telegram.ext import ConversationHandler
-
 # Add member states
-(
-    ADD_NAME,
-    ADD_GENDER,
-    ADD_BIRTH,
-    ADD_DEATH,
-    ADD_PHONE,
-    ADD_NOTES,
-    ADD_REL_TYPE,
-    ADD_REL_TARGET,
-) = range(8)
+ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES = range(6)
+ADD_REL_TYPE, ADD_REL_SEARCH, ADD_REL_SELECT = range(6, 9)
 
 # Edit member states
-(
-    EDIT_SELECT,
-    EDIT_FIELD,
-    EDIT_VALUE,
-    EDIT_REL_ACTION,
-    EDIT_REL_ADD_TYPE,
-    EDIT_REL_ADD_TARGET,
-    EDIT_REL_REMOVE,
-) = range(8, 15)
+EDIT_SEARCH, EDIT_SEARCH_SEL = range(9, 11)
+EDIT_FIELD, EDIT_VALUE = range(11, 13)
+EDIT_REL_ACTION = 13
+EDIT_REL_ADD_TYPE, EDIT_REL_ADD_SEARCH, EDIT_REL_ADD_SEL = range(14, 17)
+EDIT_REL_REMOVE = 17
 
-# Link relation states
-(
-    LINK_TYPE,
-    LINK_MEMBER_A,
-    LINK_MEMBER_B,
-) = range(15, 18)
+# Tree states
+TREE_SEARCH, TREE_SELECT = range(18, 20)
+
+# Link states
+LINK_TYPE = 20
+LINK_A_SEARCH, LINK_A_SELECT = range(21, 23)
+LINK_B_SEARCH, LINK_B_SELECT = range(23, 25)
+
+# List pagination state
+LIST_PAGE = 25
+
+# Search feature states
+SEARCH_QUERY, SEARCH_SELECT = range(26, 28)

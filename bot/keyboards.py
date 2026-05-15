@@ -43,6 +43,15 @@ ADD_REL_TYPE_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=True,
 )
 
+ADD_REL_TYPE_KEYBOARD_EDIT = ReplyKeyboardMarkup(
+    [
+        ["👨‍👧 Anak dari...", "👨‍👩‍👧 Orang tua dari..."],
+        ["💑 Pasangan dari...", "❌ Batal"],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
 EDIT_FIELDS_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["Nama", "Jenis Kelamin"],
@@ -60,11 +69,8 @@ EDIT_REL_ACTION_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=True,
 )
 
-ADD_REL_TYPE_KEYBOARD_EDIT = ReplyKeyboardMarkup(
-    [
-        ["👨‍👧 Anak dari...", "👨‍👩‍👧 Orang tua dari..."],
-        ["💑 Pasangan dari...", "❌ Batal"],
-    ],
+SEARCH_PROMPT_KEYBOARD = ReplyKeyboardMarkup(
+    [["❌ Batal"]],
     resize_keyboard=True,
     one_time_keyboard=True,
 )
@@ -76,3 +82,12 @@ def member_list_keyboard(members: list, action: str) -> InlineKeyboardMarkup:
         for m in members
     ]
     return InlineKeyboardMarkup(buttons)
+
+
+def pagination_keyboard(has_prev: bool, has_next: bool, prefix: str = "list") -> InlineKeyboardMarkup:
+    row = []
+    if has_prev:
+        row.append(InlineKeyboardButton("◀ Sebelumnya", callback_data=f"{prefix}:prev"))
+    if has_next:
+        row.append(InlineKeyboardButton("Selanjutnya ▶", callback_data=f"{prefix}:next"))
+    return InlineKeyboardMarkup([row]) if row else None

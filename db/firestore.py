@@ -3,6 +3,8 @@ import uuid
 from google.cloud import firestore
 from models.member import Member
 
+PAGE_SIZE = 20
+SEARCH_LIMIT = 10
 
 _db = None
 
@@ -37,6 +39,9 @@ def get_member(user_id: int, member_id: str) -> Member | None:
 
 
 def update_member(user_id: int, member_id: str, fields: dict):
+    # Keep name_lower in sync when name is updated
+    if "name" in fields:
+        fields["name_lower"] = fields["name"].lower()
     _members_ref(user_id).document(member_id).update(fields)
 
 
@@ -45,13 +50,54 @@ def delete_member(user_id: int, member_id: str):
 
 
 def list_members(user_id: int) -> list[Member]:
-    docs = _members_ref(user_id).stream()
+    """Fetch all members — use only for small trees or relation lookups."""
+    docs = _members_ref(user_id).order_by("name_lower").stream()
     return [Member.from_dict(d.to_dict()) for d in docs]
 
 
+def list_members_paginated(user_id: int, start_after_name: str | None = None) -> tuple[list[Member], str | None]:
+    """Return PAGE_SIZE members + next cursor (name_lower value), or None if last page."""
+    ref = _members_ref(user_id).order_by("name_lower").limit(PAGE_SIZE + 1)
+    if start_after_name:
+        ref = ref.start_after({"name_lower": start_after_name})
+    docs = list(ref.stream())
+    has_more = len(docs) > PAGE_SIZE
+    members = [Member.from_dict(d.to_dict()) for d in docs[:PAGE_SIZE]]
+    next_cursor = members[-1].name.lower() if has_more else None
+    return members, next_cursor
+
+
 def search_members(user_id: int, query: str) -> list[Member]:
-    query_lower = query.lower()
-    return [m for m in list_members(user_id) if query_lower in m.name.lower()]
+    """Prefix search on name_lower field. Falls back to substring scan for old records."""
+    q = query.lower().strip()
+    # Firestore prefix range query
+    docs = list(
+        _members_ref(user_id)
+        .order_by("name_lower")
+        .where("name_lower", ">=", q)
+        .where("name_lower", "<=", q + "")
+        .limit(SEARCH_LIMIT)
+        .stream()
+    )
+    results = [Member.from_dict(d.to_dict()) for d in docs]
+
+    # Fallback: substring search for older records that have no name_lower
+    if not results:
+        fallback = list(
+            _members_ref(user_id).limit(200).stream()
+        )
+        results = [
+            Member.from_dict(d.to_dict())
+            for d in fallback
+            if q in d.to_dict().get("name", "").lower()
+        ][:SEARCH_LIMIT]
+
+    return results
+
+
+def count_members(user_id: int) -> int:
+    result = _members_ref(user_id).count().get()
+    return result[0][0].value
 
 
 # --- Approved Users ---
@@ -92,11 +138,9 @@ def link_parent_child(user_id: int, parent_id: str, child_id: str):
     child = get_member(user_id, child_id)
     if not parent or not child:
         return
-
     if child_id not in parent.child_ids:
         parent.child_ids.append(child_id)
         update_member(user_id, parent_id, {"child_ids": parent.child_ids})
-
     if parent_id not in child.parent_ids:
         child.parent_ids.append(parent_id)
         update_member(user_id, child_id, {"parent_ids": child.parent_ids})
@@ -107,11 +151,9 @@ def link_spouses(user_id: int, member_a_id: str, member_b_id: str):
     b = get_member(user_id, member_b_id)
     if not a or not b:
         return
-
     if member_b_id not in a.spouse_ids:
         a.spouse_ids.append(member_b_id)
         update_member(user_id, member_a_id, {"spouse_ids": a.spouse_ids})
-
     if member_a_id not in b.spouse_ids:
         b.spouse_ids.append(member_a_id)
         update_member(user_id, member_b_id, {"spouse_ids": b.spouse_ids})

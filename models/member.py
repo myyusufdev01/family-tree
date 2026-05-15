@@ -21,6 +21,7 @@ class Member:
         return {
             "id": self.id,
             "name": self.name,
+            "name_lower": self.name.lower(),  # for Firestore prefix search
             "gender": self.gender,
             "birth_date": self.birth_date,
             "death_date": self.death_date,

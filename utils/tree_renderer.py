@@ -1,64 +1,79 @@
 from models.member import Member
 
 
-def render_tree(members: list[Member]) -> str:
-    if not members:
-        return "Pohon keluarga masih kosong."
+def render_family_of(member: Member, by_id: dict[str, Member]) -> str:
+    """Render direct family view for one person (scalable for large trees)."""
+    icon = lambda m: "👨" if m.gender == "male" else "👩"
+    fmt = lambda m: f"{icon(m)} {m.name}" + (f" ({m.birth_date})" if m.birth_date else "")
 
-    by_id = {m.id: m for m in members}
+    lines = [f"🌳 *Keluarga: {member.name}*\n"]
 
-    # Find roots: members with no parents in this tree
-    roots = [m for m in members if not any(pid in by_id for pid in m.parent_ids)]
+    # Grandparents (orang tua dari orang tua)
+    grandparents = []
+    for pid in member.parent_ids:
+        p = by_id.get(pid)
+        if p:
+            for gid in p.parent_ids:
+                g = by_id.get(gid)
+                if g and g not in grandparents:
+                    grandparents.append(g)
+    if grandparents:
+        lines.append("👴👵 *Kakek/Nenek:*")
+        for g in grandparents:
+            lines.append(f"  • {fmt(g)}")
+        lines.append("")
 
-    visited = set()
-    lines = []
+    # Parents
+    parents = [by_id[pid] for pid in member.parent_ids if pid in by_id]
+    if parents:
+        lines.append("👨‍👩‍👧 *Orang Tua:*")
+        for p in parents:
+            lines.append(f"  • {fmt(p)}")
+        lines.append("")
 
-    def render_member(member: Member, prefix: str, is_last: bool):
-        if member.id in visited:
-            return
-        visited.add(member.id)
+    # Siblings (share at least one parent)
+    sibling_ids = set()
+    for pid in member.parent_ids:
+        p = by_id.get(pid)
+        if p:
+            for cid in p.child_ids:
+                if cid != member.id:
+                    sibling_ids.add(cid)
+    siblings = [by_id[sid] for sid in sibling_ids if sid in by_id]
+    if siblings:
+        lines.append("👫 *Saudara:*")
+        for s in siblings:
+            lines.append(f"  • {fmt(s)}")
+        lines.append("")
 
-        connector = "└── " if is_last else "├── "
-        gender_icon = "👨" if member.gender == "male" else "👩"
-        label = f"{gender_icon} {member.name}"
-        if member.birth_date:
-            label += f" ({member.birth_date})"
+    # Self
+    self_label = fmt(member)
+    lines.append(f"👤 *{self_label}* ← (Anda cari)")
 
-        lines.append(prefix + connector + label)
+    # Spouses
+    spouses = [by_id[sid] for sid in member.spouse_ids if sid in by_id]
+    if spouses:
+        lines.append("")
+        lines.append("💑 *Pasangan:*")
+        for sp in spouses:
+            lines.append(f"  • {fmt(sp)}")
 
-        # Show spouses inline
-        for sp_id in member.spouse_ids:
-            sp = by_id.get(sp_id)
-            if sp and sp.id not in visited:
-                sp_icon = "👨" if sp.gender == "male" else "👩"
-                lines.append(prefix + ("    " if is_last else "│   ") + f"  💑 {sp_icon} {sp.name}")
-                visited.add(sp.id)
-
-        child_prefix = prefix + ("    " if is_last else "│   ")
-        children = [by_id[cid] for cid in member.child_ids if cid in by_id]
-        for i, child in enumerate(children):
-            render_member(child, child_prefix, i == len(children) - 1)
-
-    lines.append("🌳 *Pohon Keluarga*")
-    for i, root in enumerate(roots):
-        render_member(root, "", i == len(roots) - 1)
+    # Children
+    children = [by_id[cid] for cid in member.child_ids if cid in by_id]
+    if children:
+        lines.append("")
+        lines.append("👶 *Anak:*")
+        for c in children:
+            # also show grandchildren count
+            gc_count = len([gid for gid in c.child_ids if gid in by_id])
+            line = f"  • {fmt(c)}"
+            if gc_count:
+                line += f"  _(punya {gc_count} anak)_"
+            lines.append(line)
 
     return "\n".join(lines)
 
 
 def render_member_relations(member: Member, all_members: list[Member]) -> str:
     by_id = {m.id: m for m in all_members}
-    lines = [member.summary(), ""]
-
-    parents = [by_id[pid].name for pid in member.parent_ids if pid in by_id]
-    spouses = [by_id[sid].name for sid in member.spouse_ids if sid in by_id]
-    children = [by_id[cid].name for cid in member.child_ids if cid in by_id]
-
-    if parents:
-        lines.append(f"👪 Orang tua: {', '.join(parents)}")
-    if spouses:
-        lines.append(f"💑 Pasangan: {', '.join(spouses)}")
-    if children:
-        lines.append(f"👶 Anak: {', '.join(children)}")
-
-    return "\n".join(lines)
+    return render_family_of(member, by_id)
