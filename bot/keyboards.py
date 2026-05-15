@@ -4,8 +4,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMa
 MAIN_MENU = ReplyKeyboardMarkup(
     [
         ["➕ Tambah Anggota", "🌳 Lihat Pohon"],
-        ["🔍 Cari Anggota", "🔗 Hubungkan Anggota"],
-        ["📋 Daftar Anggota"],
+        ["✏️ Edit Anggota", "🔗 Hubungkan Anggota"],
+        ["🔍 Cari Anggota", "📋 Daftar Anggota"],
     ],
     resize_keyboard=True,
 )
