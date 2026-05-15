@@ -6,10 +6,13 @@ from telegram.ext import (
     MessageHandler,
     CallbackQueryHandler,
     ConversationHandler,
+    TypeHandler,
     filters,
 )
+from telegram import Update
 
 import config  # validates env vars on import
+from bot.middleware import check_approved
 from bot.handlers.start import start, help_command
 from bot.handlers.tree import view_tree
 from bot.handlers.member import (
@@ -19,7 +22,10 @@ from bot.handlers.member import (
 )
 from bot.handlers.search import search_start, search_query, search_select, SEARCH_QUERY, SEARCH_SELECT
 from bot.handlers.link import link_start, link_type, link_member_a, link_member_b, cancel as link_cancel
-from bot.handlers.admin import admin_panel, admin_users, admin_stats, admin_broadcast_start, handle_broadcast
+from bot.handlers.admin import (
+    admin_panel, admin_stats, admin_broadcast_start, handle_broadcast,
+    cmd_daftarkan, cmd_cabut, cmd_daftar_user,
+)
 from bot.states import (
     ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES,
     EDIT_SELECT, EDIT_FIELD, EDIT_VALUE,
@@ -30,10 +36,14 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 PORT = int(os.getenv("PORT", 8080))
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
+IS_CLOUD_RUN = bool(os.getenv("K_SERVICE"))  # Cloud Run sets this automatically
 
 
 def build_app() -> Application:
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+
+    # Group -1: cek approval sebelum semua handler lain
+    app.add_handler(TypeHandler(Update, check_approved), group=-1)
 
     add_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^➕ Tambah Anggota$"), add_member_start)],
@@ -77,18 +87,23 @@ def build_app() -> Application:
         fallbacks=[MessageHandler(filters.Regex("^❌ Batal$"), link_cancel)],
     )
 
+    # User commands
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("admin", admin_panel))
-    app.add_handler(CommandHandler("admin_users", admin_users))
-    app.add_handler(CommandHandler("admin_stats", admin_stats))
-    app.add_handler(CommandHandler("admin_broadcast", admin_broadcast_start))
     app.add_handler(MessageHandler(filters.Regex("^🌳 Lihat Pohon$"), view_tree))
     app.add_handler(MessageHandler(filters.Regex("^📋 Daftar Anggota$"), list_members_cmd))
     app.add_handler(add_conv)
     app.add_handler(edit_conv)
     app.add_handler(search_conv)
     app.add_handler(link_conv)
+
+    # Admin commands
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CommandHandler("daftarkan", cmd_daftarkan))
+    app.add_handler(CommandHandler("cabut", cmd_cabut))
+    app.add_handler(CommandHandler("daftar_user", cmd_daftar_user))
+    app.add_handler(CommandHandler("admin_stats", admin_stats))
+    app.add_handler(CommandHandler("admin_broadcast", admin_broadcast_start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast))
 
     return app
@@ -97,14 +112,18 @@ def build_app() -> Application:
 def main():
     app = build_app()
 
-    if WEBHOOK_URL:
-        logging.info(f"Bot berjalan dengan webhook: {WEBHOOK_URL}")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            webhook_url=WEBHOOK_URL,
-            secret_token=config.TELEGRAM_BOT_TOKEN.replace(":", "_"),
-        )
+    if IS_CLOUD_RUN or WEBHOOK_URL:
+        webhook_kwargs = {
+            "listen": "0.0.0.0",
+            "port": PORT,
+            "secret_token": config.TELEGRAM_BOT_TOKEN.replace(":", "_"),
+        }
+        if WEBHOOK_URL:
+            webhook_kwargs["webhook_url"] = WEBHOOK_URL
+            logging.info(f"Bot berjalan dengan webhook: {WEBHOOK_URL}")
+        else:
+            logging.info("Cloud Run terdeteksi, menjalankan webhook server (URL belum dikonfigurasi)...")
+        app.run_webhook(**webhook_kwargs)
     else:
         logging.info("Bot berjalan dengan polling...")
         app.run_polling()

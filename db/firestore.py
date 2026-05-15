@@ -54,6 +54,37 @@ def search_members(user_id: int, query: str) -> list[Member]:
     return [m for m in list_members(user_id) if query_lower in m.name.lower()]
 
 
+# --- Approved Users ---
+
+def _approved_ref():
+    return get_db().collection("approved_users")
+
+
+def approve_user(user_id: int, name: str = "", added_by: int = 0):
+    from datetime import datetime
+    _approved_ref().document(str(user_id)).set({
+        "user_id": user_id,
+        "name": name,
+        "added_by": added_by,
+        "approved_at": datetime.utcnow().isoformat(),
+    })
+
+
+def revoke_user(user_id: int):
+    _approved_ref().document(str(user_id)).delete()
+
+
+def is_approved(user_id: int) -> bool:
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        return True
+    return _approved_ref().document(str(user_id)).get().exists
+
+
+def list_approved_users() -> list[dict]:
+    return [d.to_dict() for d in _approved_ref().stream()]
+
+
 # --- Relationship helpers ---
 
 def link_parent_child(user_id: int, parent_id: str, child_id: str):
