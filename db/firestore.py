@@ -115,3 +115,25 @@ def link_spouses(user_id: int, member_a_id: str, member_b_id: str):
     if member_a_id not in b.spouse_ids:
         b.spouse_ids.append(member_a_id)
         update_member(user_id, member_b_id, {"spouse_ids": b.spouse_ids})
+
+
+def unlink_parent_child(user_id: int, parent_id: str, child_id: str):
+    parent = get_member(user_id, parent_id)
+    child = get_member(user_id, child_id)
+    if parent and child_id in parent.child_ids:
+        parent.child_ids.remove(child_id)
+        update_member(user_id, parent_id, {"child_ids": parent.child_ids})
+    if child and parent_id in child.parent_ids:
+        child.parent_ids.remove(parent_id)
+        update_member(user_id, child_id, {"parent_ids": child.parent_ids})
+
+
+def unlink_spouses(user_id: int, member_a_id: str, member_b_id: str):
+    a = get_member(user_id, member_a_id)
+    b = get_member(user_id, member_b_id)
+    if a and member_b_id in a.spouse_ids:
+        a.spouse_ids.remove(member_b_id)
+        update_member(user_id, member_a_id, {"spouse_ids": a.spouse_ids})
+    if b and member_a_id in b.spouse_ids:
+        b.spouse_ids.remove(member_a_id)
+        update_member(user_id, member_b_id, {"spouse_ids": b.spouse_ids})

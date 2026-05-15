@@ -17,11 +17,15 @@ from telegram.ext import ConversationHandler
     EDIT_SELECT,
     EDIT_FIELD,
     EDIT_VALUE,
-) = range(8, 11)
+    EDIT_REL_ACTION,
+    EDIT_REL_ADD_TYPE,
+    EDIT_REL_ADD_TARGET,
+    EDIT_REL_REMOVE,
+) = range(8, 15)
 
 # Link relation states
 (
     LINK_TYPE,
     LINK_MEMBER_A,
     LINK_MEMBER_B,
-) = range(11, 14)
+) = range(15, 18)

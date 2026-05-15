@@ -48,7 +48,22 @@ EDIT_FIELDS_KEYBOARD = ReplyKeyboardMarkup(
         ["Nama", "Jenis Kelamin"],
         ["Tanggal Lahir", "Tanggal Wafat"],
         ["Telepon", "Catatan"],
-        ["❌ Batal"],
+        ["🔗 Relasi", "❌ Batal"],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
+EDIT_REL_ACTION_KEYBOARD = ReplyKeyboardMarkup(
+    [["➕ Tambah Relasi", "🗑 Hapus Relasi"], ["❌ Batal"]],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
+ADD_REL_TYPE_KEYBOARD_EDIT = ReplyKeyboardMarkup(
+    [
+        ["👨‍👧 Anak dari...", "👨‍👩‍👧 Orang tua dari..."],
+        ["💑 Pasangan dari...", "❌ Batal"],
     ],
     resize_keyboard=True,
     one_time_keyboard=True,

@@ -21,6 +21,7 @@ from bot.handlers.member import (
     add_member_start, add_name, add_gender, add_birth, add_death, add_phone, add_notes,
     add_rel_type, add_rel_target,
     edit_member_start, edit_select, edit_field, edit_value,
+    edit_rel_action, edit_rel_add_type, edit_rel_add_target, edit_rel_remove,
     list_members_cmd, cancel,
 )
 from bot.handlers.search import search_start, search_query, search_select, SEARCH_QUERY, SEARCH_SELECT
@@ -33,6 +34,7 @@ from bot.states import (
     ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES,
     ADD_REL_TYPE, ADD_REL_TARGET,
     EDIT_SELECT, EDIT_FIELD, EDIT_VALUE,
+    EDIT_REL_ACTION, EDIT_REL_ADD_TYPE, EDIT_REL_ADD_TARGET, EDIT_REL_REMOVE,
     LINK_TYPE, LINK_MEMBER_A, LINK_MEMBER_B,
 )
 
@@ -69,9 +71,13 @@ def build_app() -> Application:
     edit_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^✏️ Edit Anggota$"), edit_member_start)],
         states={
-            EDIT_SELECT: [CallbackQueryHandler(edit_select, pattern="^edit:")],
-            EDIT_FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_field)],
-            EDIT_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value)],
+            EDIT_SELECT:        [CallbackQueryHandler(edit_select, pattern="^edit:")],
+            EDIT_FIELD:         [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_field)],
+            EDIT_VALUE:         [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value)],
+            EDIT_REL_ACTION:    [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_rel_action)],
+            EDIT_REL_ADD_TYPE:  [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_rel_add_type)],
+            EDIT_REL_ADD_TARGET:[CallbackQueryHandler(edit_rel_add_target, pattern="^erel:")],
+            EDIT_REL_REMOVE:    [CallbackQueryHandler(edit_rel_remove, pattern="^rmrel:")],
         },
         fallbacks=[MessageHandler(filters.Regex("^❌ Batal$"), cancel)],
     )
