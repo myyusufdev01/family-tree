@@ -19,6 +19,7 @@ from bot.handlers.member import (
 )
 from bot.handlers.search import search_start, search_query, search_select, SEARCH_QUERY, SEARCH_SELECT
 from bot.handlers.link import link_start, link_type, link_member_a, link_member_b, cancel as link_cancel
+from bot.handlers.admin import admin_panel, admin_users, admin_stats, admin_broadcast_start, handle_broadcast
 from bot.states import (
     ADD_NAME, ADD_GENDER, ADD_BIRTH, ADD_DEATH, ADD_PHONE, ADD_NOTES,
     EDIT_SELECT, EDIT_FIELD, EDIT_VALUE,
@@ -78,12 +79,17 @@ def build_app() -> Application:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CommandHandler("admin_users", admin_users))
+    app.add_handler(CommandHandler("admin_stats", admin_stats))
+    app.add_handler(CommandHandler("admin_broadcast", admin_broadcast_start))
     app.add_handler(MessageHandler(filters.Regex("^🌳 Lihat Pohon$"), view_tree))
     app.add_handler(MessageHandler(filters.Regex("^📋 Daftar Anggota$"), list_members_cmd))
     app.add_handler(add_conv)
     app.add_handler(edit_conv)
     app.add_handler(search_conv)
     app.add_handler(link_conv)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast))
 
     return app
 
