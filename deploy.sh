@@ -2,7 +2,7 @@
 set -e
 
 # ── Konfigurasi ─────────────────────────────────────────────
-PROJECT_ID="family-tree-hdjon"
+PROJECT_ID="family-tree-496412"
 REGION="asia-southeast1"
 SERVICE_NAME="family-tree-bot"
 IMAGE="gcr.io/$PROJECT_ID/$SERVICE_NAME"

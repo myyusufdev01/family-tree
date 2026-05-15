@@ -1,0 +1,13 @@
+.gcloudignore
+.git
+.gitignore
+.vscode
+.claude
+.env
+*.md
+serviceAccountKey.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+deploy.sh

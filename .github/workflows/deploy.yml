@@ -1,0 +1,77 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: family-tree-496412
+  REGION: asia-southeast1
+  SERVICE_NAME: family-tree-bot
+  IMAGE: gcr.io/family-tree-496412/family-tree-bot
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build & Push Docker image
+        run: |
+          docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID" \
+            --set-secrets "TELEGRAM_BOT_TOKEN=telegram-bot-token:latest" \
+            --project=$PROJECT_ID \
+            --quiet
+
+      - name: Get Service URL & Update Webhook
+        run: |
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+            --region $REGION \
+            --project $PROJECT_ID \
+            --format "value(status.url)")
+
+          WEBHOOK_URL="$SERVICE_URL/telegram"
+
+          gcloud run services update $SERVICE_NAME \
+            --region $REGION \
+            --project $PROJECT_ID \
+            --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID,WEBHOOK_URL=$WEBHOOK_URL" \
+            --quiet
+
+          echo "✅ Deployed: $SERVICE_URL"
+          echo "🔗 Webhook : $WEBHOOK_URL"
