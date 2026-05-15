@@ -1,4 +1,5 @@
 import logging
+import os
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -26,8 +27,11 @@ from bot.states import (
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
+PORT = int(os.getenv("PORT", 8080))
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
-def main():
+
+def build_app() -> Application:
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
 
     add_conv = ConversationHandler(
@@ -81,8 +85,23 @@ def main():
     app.add_handler(search_conv)
     app.add_handler(link_conv)
 
-    logging.info("Bot berjalan...")
-    app.run_polling()
+    return app
+
+
+def main():
+    app = build_app()
+
+    if WEBHOOK_URL:
+        logging.info(f"Bot berjalan dengan webhook: {WEBHOOK_URL}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_url=WEBHOOK_URL,
+            secret_token=config.TELEGRAM_BOT_TOKEN.replace(":", "_"),
+        )
+    else:
+        logging.info("Bot berjalan dengan polling...")
+        app.run_polling()
 
 
 if __name__ == "__main__":
