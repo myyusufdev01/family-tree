@@ -55,6 +55,11 @@ class LinkRequest(BaseModel):
     type: str  # "parent_child" | "spouse"
     member_a_id: str
     member_b_id: str
+
+class ApproveUserRequest(BaseModel):
+    user_id: int
+    name: str = ""
+
 # ── Member endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/api/members")
@@ -107,6 +112,29 @@ def get_member_endpoint(member_id: str, user_id: int = Query(0)):
     return member.to_dict()
 
 
+@app.put("/api/members/{member_id}")
+def update_member_endpoint(
+    member_id: str, body: MemberUpdate, user_id: int = Query(0)
+):
+    existing = get_member(user_id, member_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Member not found")
+    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    if fields:
+        update_member(user_id, member_id, fields)
+    updated = get_member(user_id, member_id)
+    return updated.to_dict() if updated else existing.to_dict()
+
+
+@app.delete("/api/members/{member_id}")
+def delete_member_endpoint(member_id: str, user_id: int = Query(0)):
+    existing = get_member(user_id, member_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Member not found")
+    delete_member(user_id, member_id)
+    return {"status": "deleted"}
+
+
 # ── Relation endpoints ───────────────────────────────────────────────────────
 
 @app.post("/api/members/link")
@@ -151,7 +179,6 @@ def get_tree(member_id: str, user_id: int = Query(0)):
         "member": member.to_dict(),
         "family": {mid: m.to_dict() for mid, m in by_id.items()},
     }
-@app.put("/api/members/{member_id}")
 # ── Admin endpoints ──────────────────────────────────────────────────────────
 
 @app.get("/api/admin/users")
@@ -211,27 +238,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
-def update_member_endpoint(
-    member_id: str, body: MemberUpdate, user_id: int = Query(0)
-):
-    existing = get_member(user_id, member_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Member not found")
-    fields = {k: v for k, v in body.model_dump().items() if v is not None}
-    if fields:
-        update_member(user_id, member_id, fields)
-    updated = get_member(user_id, member_id)
-    return updated.to_dict() if updated else existing.to_dict()
-
-
-@app.delete("/api/members/{member_id}")
-def delete_member_endpoint(member_id: str, user_id: int = Query(0)):
-    existing = get_member(user_id, member_id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Member not found")
-    delete_member(user_id, member_id)
-    return {"status": "deleted"}
-
-class ApproveUserRequest(BaseModel):
-    user_id: int
-    name: str = ""
