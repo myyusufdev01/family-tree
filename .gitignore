@@ -10,3 +10,6 @@ dist/
 build/
 .claude/
 .vscode/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
