@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listMembers, searchMembers, getAdminStats } from "@/lib/api";
+import { toDisplayDate } from "@/lib/date-format";
 import type { Member } from "@/lib/types";
 
 export default function Dashboard() {
@@ -163,7 +164,7 @@ return (
                         {m.gender === "male" ? "Laki-laki" : "Perempuan"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{m.birth_date || "-"}</TableCell>
+                    <TableCell>{toDisplayDate(m.birth_date) || "-"}</TableCell>
                     <TableCell>{m.phone || "-"}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/members/${m.id}/edit`}>

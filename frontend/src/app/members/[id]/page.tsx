@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTree } from "@/lib/api";
+import { toDisplayDate } from "@/lib/date-format";
 import type { Member, FamilyTree } from "@/lib/types";
 
 function MemberCard({ member, label }: { member: Member; label?: string }) {
@@ -24,10 +25,10 @@ function MemberCard({ member, label }: { member: Member; label?: string }) {
         {member.gender === "male" ? "👨" : "👩"} {member.name}
       </p>
       {member.birth_date && (
-        <p className="text-sm text-muted-foreground">Lahir: {member.birth_date}</p>
+        <p className="text-sm text-muted-foreground">Lahir: {toDisplayDate(member.birth_date)}</p>
       )}
       {member.death_date && (
-        <p className="text-sm text-muted-foreground">Wafat: {member.death_date}</p>
+        <p className="text-sm text-muted-foreground">Wafat: {toDisplayDate(member.death_date)}</p>
       )}
     </div>
   );
@@ -142,13 +143,13 @@ export default function MemberDetailPage() {
               {member.birth_date && (
                 <TableRow>
                   <TableCell className="font-medium">Tanggal Lahir</TableCell>
-                  <TableCell>{member.birth_date}</TableCell>
+                  <TableCell>{toDisplayDate(member.birth_date)}</TableCell>
                 </TableRow>
               )}
               {member.death_date && (
                 <TableRow>
                   <TableCell className="font-medium">Tanggal Wafat</TableCell>
-                  <TableCell>{member.death_date}</TableCell>
+                  <TableCell>{toDisplayDate(member.death_date)}</TableCell>
                 </TableRow>
               )}
               {member.phone && (

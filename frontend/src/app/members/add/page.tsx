@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateInput } from "@/components/ui/date-input";
 import { createMember } from "@/lib/api";
 
 export default function AddMemberPage() {
@@ -87,20 +88,18 @@ export default function AddMemberPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="birth">Tanggal Lahir</Label>
-                <Input
+                <DateInput
                   id="birth"
                   value={form.birth_date}
-                  onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-                  placeholder="1990-05-20"
+                  onChange={(iso) => setForm({ ...form, birth_date: iso })}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="death">Tanggal Wafat</Label>
-                <Input
+                <DateInput
                   id="death"
                   value={form.death_date}
-                  onChange={(e) => setForm({ ...form, death_date: e.target.value })}
-                  placeholder="2024-01-01"
+                  onChange={(iso) => setForm({ ...form, death_date: iso })}
                 />
               </div>
             </div>
