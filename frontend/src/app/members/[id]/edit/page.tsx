@@ -108,11 +108,13 @@ async function handleSave(e: React.FormEvent) {
       const target = relResults.find((m) => m.id === targetId);
       const targetName = target?.name || "?";
       if (relRole === "parent") {
-        await linkMembers("parent_child", targetId, memberId);
-        alert(`✅ ${targetName} jadi orang tua dari ${member?.name}`);
-      } else if (relRole === "child") {
+        // "Orang tua dari X" → [member] jadi orang tua dari X (member=ortu, X=anak)
         await linkMembers("parent_child", memberId, targetId);
         alert(`✅ ${member?.name} jadi orang tua dari ${targetName}`);
+      } else if (relRole === "child") {
+        // "Anak dari X" → [member] jadi anak dari X (X=ortu, member=anak)
+        await linkMembers("parent_child", targetId, memberId);
+        alert(`✅ ${targetName} jadi orang tua dari ${member?.name}`);
       } else if (relRole === "sibling") {
         await linkMembers("sibling", memberId, targetId);
         alert(`✅ ${member?.name} & ${targetName} jadi saudara kandung`);
@@ -132,7 +134,14 @@ async function handleSave(e: React.FormEvent) {
   async function handleRemoveRelation(type: "parent_child" | "spouse" | "sibling", targetId: string) {
     try {
       if (type === "parent_child") {
-        await unlinkMembers("parent_child", memberId, targetId);
+        // Backend mengharapkan member_a = orang tua, member_b = anak.
+        // Jika target adalah orang tua, balik urutannya supaya terhapus.
+        const targetIsParent = !!member && member.parent_ids.includes(targetId);
+        if (targetIsParent) {
+          await unlinkMembers("parent_child", targetId, memberId);
+        } else {
+          await unlinkMembers("parent_child", memberId, targetId);
+        }
       } else if (type === "sibling") {
         await unlinkMembers("sibling", memberId, targetId);
       } else {
@@ -281,7 +290,15 @@ function RelationList({ title, ids, onRemove }: { title: string; ids: string[]; 
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-2 bg-muted rounded-full px-3 py-1 text-sm">
             <span>{m.gender === "male" ? "👨" : "👩"} {m.name}</span>
-            <button onClick={() => onRemove(m.id)} className="text-destructive hover:text-destructive/80" title="Hapus relasi">✕</button>
+            <button
+              type="button"
+              onClick={() => onRemove(m.id)}
+              title={`Hapus relasi dengan ${m.name}`}
+              aria-label={`Hapus relasi dengan ${m.name}`}
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-sm leading-none text-destructive transition-colors hover:bg-destructive/10 hover:text-destructive/80"
+            >
+              ✕
+            </button>
           </div>
         ))}
       </div>
