@@ -306,9 +306,9 @@ export default function TreeView({
                   strokeWidth={e.kind === "spouse" ? 2 : 1.5}
                   strokeDasharray={e.kind === "parent_child" ? undefined : "4 4"}
                   className={cn(
-                    e.kind === "parent_child" && "stroke-border",
-                    e.kind === "spouse" && "stroke-primary/50",
-                    e.kind === "sibling" && "stroke-muted-foreground/50",
+                    e.kind === "parent_child" && "stroke-sky-500",
+                    e.kind === "spouse" && "stroke-rose-500",
+                    e.kind === "sibling" && "stroke-emerald-500",
                   )}
                 />
               );
@@ -352,7 +352,7 @@ export default function TreeView({
         <span className="font-medium text-foreground">Garis relasi:</span>
         <span className="inline-flex items-center gap-1.5">
           <svg width="22" height="8" aria-hidden="true">
-            <line x1="0" y1="4" x2="22" y2="4" strokeWidth="1.5" className="stroke-border" />
+            <line x1="0" y1="4" x2="22" y2="4" strokeWidth="1.5" className="stroke-sky-500" />
           </svg>
           Orang tua–anak
         </span>
@@ -365,7 +365,7 @@ export default function TreeView({
               y2="4"
               strokeWidth="2"
               strokeDasharray="4 4"
-              className="stroke-primary/50"
+              className="stroke-rose-500"
             />
           </svg>
           Pasangan
@@ -379,7 +379,7 @@ export default function TreeView({
               y2="4"
               strokeWidth="1.5"
               strokeDasharray="4 4"
-              className="stroke-muted-foreground/50"
+              className="stroke-emerald-500"
             />
           </svg>
           Saudara kandung
