@@ -34,9 +34,17 @@ interface PlacedNode {
   top: number; // y bagian atas kartu
 }
 
+type EdgeKind = "parent_child" | "spouse" | "sibling";
+
+interface Edge {
+  from: string;
+  to: string;
+  kind: EdgeKind;
+}
+
 interface TreeLayout {
   placed: Map<string, PlacedNode>;
-  edges: { from: string; to: string }[];
+  edges: Edge[];
   levelMeta: { gen: number; label: string; count: number }[];
   totalW: number;
   totalH: number;
@@ -131,11 +139,35 @@ function layoutTree(tree: FamilyTree): TreeLayout {
     });
   });
 
-  const edges: { from: string; to: string }[] = [];
+  const edges: Edge[] = [];
+  const edgeKey = new Set<string>();
   for (const m of members) {
+    // Orang tua → anak (garis "siku" vertikal).
     for (const pid of m.parent_ids ?? []) {
       if (pid !== m.id && placed.has(pid) && placed.has(m.id)) {
-        edges.push({ from: pid, to: m.id });
+        const key = `${pid}>${m.id}`;
+        if (!edgeKey.has(key)) {
+          edgeKey.add(key);
+          edges.push({ from: pid, to: m.id, kind: "parent_child" });
+        }
+      }
+    }
+    // Saudara kandung (sebaris, garis horizontal).
+    for (const sid of m.sibling_ids ?? []) {
+      if (sid === m.id || !placed.has(sid) || !placed.has(m.id)) continue;
+      const key = [m.id, sid].sort().join("<");
+      if (!edgeKey.has(key)) {
+        edgeKey.add(key);
+        edges.push({ from: m.id, to: sid, kind: "sibling" });
+      }
+    }
+    // Pasangan (sebaris, garis horizontal).
+    for (const sp of m.spouse_ids ?? []) {
+      if (sp === m.id || !placed.has(sp) || !placed.has(m.id)) continue;
+      const key = [m.id, sp].sort().join("<");
+      if (!edgeKey.has(key)) {
+        edgeKey.add(key);
+        edges.push({ from: m.id, to: sp, kind: "spouse" });
       }
     }
   }
@@ -145,17 +177,27 @@ function layoutTree(tree: FamilyTree): TreeLayout {
   return { placed, edges, levelMeta, totalW, totalH };
 }
 
-/** Path garis penghubung orang tua → anak (bentuk "siku"). */
-function edgePath(from: PlacedNode, to: PlacedNode): string {
-  const x1 = from.cx;
-  const y1 = from.top + CARD_H;
-  const x2 = to.cx;
-  const y2 = to.top;
-  if (Math.abs(x1 - x2) < 1) {
-    return `M ${x1} ${y1} L ${x1} ${y2}`;
+/** Path garis penghubung antar kartu. */
+function edgePath(from: PlacedNode, to: PlacedNode, kind: EdgeKind): string {
+  if (kind === "parent_child") {
+    // Garis "siku" dari bawah orang tua ke atas anak.
+    const x1 = from.cx;
+    const y1 = from.top + CARD_H;
+    const x2 = to.cx;
+    const y2 = to.top;
+    if (Math.abs(x1 - x2) < 1) {
+      return `M ${x1} ${y1} L ${x1} ${y2}`;
+    }
+    const midY = (y1 + y2) / 2;
+    return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
   }
-  const midY = (y1 + y2) / 2;
-  return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+  // Relasi sebaris (pasangan/saudara): garis horizontal antara tepi kartu.
+  const left = from.cx <= to.cx ? from : to;
+  const right = from.cx <= to.cx ? to : from;
+  const y = from.top + CARD_H / 2;
+  const x1 = left.cx + CARD_W / 2;
+  const x2 = right.cx - CARD_W / 2;
+  return `M ${x1} ${y} L ${x2} ${y}`;
 }
 
 function yearOf(iso: string | null | undefined): string {
@@ -259,10 +301,15 @@ export default function TreeView({
               return (
                 <path
                   key={i}
-                  d={edgePath(from, to)}
+                  d={edgePath(from, to, e.kind)}
                   fill="none"
-                  strokeWidth={1.5}
-                  className="stroke-border"
+                  strokeWidth={e.kind === "spouse" ? 2 : 1.5}
+                  strokeDasharray={e.kind === "parent_child" ? undefined : "4 4"}
+                  className={cn(
+                    e.kind === "parent_child" && "stroke-border",
+                    e.kind === "spouse" && "stroke-primary/50",
+                    e.kind === "sibling" && "stroke-muted-foreground/50",
+                  )}
                 />
               );
             })}
@@ -298,6 +345,45 @@ export default function TreeView({
             <span>({l.count})</span>
           </span>
         ))}
+      </div>
+
+      {/* Legenda garis relasi */}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Garis relasi:</span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="22" height="8" aria-hidden="true">
+            <line x1="0" y1="4" x2="22" y2="4" strokeWidth="1.5" className="stroke-border" />
+          </svg>
+          Orang tua–anak
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="22" height="8" aria-hidden="true">
+            <line
+              x1="0"
+              y1="4"
+              x2="22"
+              y2="4"
+              strokeWidth="2"
+              strokeDasharray="4 4"
+              className="stroke-primary/50"
+            />
+          </svg>
+          Pasangan
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="22" height="8" aria-hidden="true">
+            <line
+              x1="0"
+              y1="4"
+              x2="22"
+              y2="4"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              className="stroke-muted-foreground/50"
+            />
+          </svg>
+          Saudara kandung
+        </span>
       </div>
     </div>
   );
