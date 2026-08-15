@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { getMember, updateMember, searchMembers, linkMembers, unlinkMembers } from "@/lib/api";
 import type { Member } from "@/lib/types";
+import { GENDER_LABELS, REL_ROLE_LABELS } from "@/lib/labels";
 
 export default function EditMemberPage() {
   const params = useParams();
@@ -159,7 +160,9 @@ return (
             <div className="space-y-2">
               <Label>Jenis Kelamin</Label>
               <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v as "male" | "female" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue>
+                  {(v) => GENDER_LABELS[(v ?? "male") as "male" | "female"]}
+                </SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="male">👨 Laki-laki</SelectItem>
                   <SelectItem value="female">👩 Perempuan</SelectItem>
@@ -220,7 +223,9 @@ return (
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Select value={relRole} onValueChange={(v) => setRelRole(v as "parent" | "child" | "spouse")}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44"><SelectValue>
+                {(v) => REL_ROLE_LABELS[(v ?? "parent") as "parent" | "child" | "spouse"]}
+              </SelectValue></SelectTrigger>
               <SelectContent>
                 <SelectItem value="parent">Orang tua dari...</SelectItem>
                 <SelectItem value="child">Anak dari...</SelectItem>

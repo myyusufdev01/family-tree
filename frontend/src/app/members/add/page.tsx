@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { DateInput } from "@/components/ui/date-input";
 import { createMember } from "@/lib/api";
+import { GENDER_LABELS } from "@/lib/labels";
 
 export default function AddMemberPage() {
   const router = useRouter();
@@ -76,7 +77,9 @@ export default function AddMemberPage() {
                 onValueChange={(v) => setForm({ ...form, gender: v as "male" | "female" })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {(v) => GENDER_LABELS[(v ?? "male") as "male" | "female"]}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="male">👨 Laki-laki</SelectItem>
