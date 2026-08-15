@@ -15,9 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listMembers, searchMembers, getAdminStats } from "@/lib/api";
+import { listMembers, searchMembers } from "@/lib/api";
 import { toDisplayDate } from "@/lib/date-format";
 import type { Member } from "@/lib/types";
+import DashboardStats from "@/components/dashboard/dashboard-stats";
 
 export default function Dashboard() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -25,37 +26,23 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Member[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const [stats, setStats] = useState<{
-    total_members: number;
-    total_users: number;
-    total_trees?: number;
-  } | null>(null);
 
   useEffect(() => {
-    loadMembers();
-    loadStats();
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await listMembers();
+        if (!cancelled) setMembers(data.members);
+      } catch (err: unknown) {
+        console.error(err instanceof Error ? err.message : "Gagal memuat data");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  async function loadMembers() {
-    setLoading(true);
-    try {
-      const data = await listMembers();
-      setMembers(data.members);
-    } catch (err: unknown) {
-      console.error(err instanceof Error ? err.message : "Gagal memuat data");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadStats() {
-    try {
-      const data = await getAdminStats();
-      setStats(data);
-    } catch {
-      /* admin stats optional */
-    }
-  }
 
   async function handleSearch() {
     if (!searchQuery.trim()) {
@@ -74,45 +61,31 @@ export default function Dashboard() {
   }
 
   const displayMembers = searchResults ?? members;
-return (
+
+  return (
     <div className="space-y-6">
-      {stats && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Total Anggota</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.total_members}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Total Pohon</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.total_trees ?? "-"}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">Pengguna</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{stats.total_users}</p>
-            </CardContent>
-          </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Dashboard Keluarga</h1>
+          <p className="text-sm text-muted-foreground">
+            Ringkasan data silsilah keluarga Anda.
+          </p>
         </div>
-      )}
+        <div className="flex flex-wrap gap-2">
+          <Link href="/tree">
+            <Button variant="outline">🌳 Lihat Pohon</Button>
+          </Link>
+          <Link href="/members/add">
+            <Button>➕ Tambah Anggota</Button>
+          </Link>
+        </div>
+      </div>
+
+      <DashboardStats />
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Daftar Anggota Keluarga</CardTitle>
-            <Link href="/members/add">
-              <Button>➕ Tambah Anggota</Button>
-            </Link>
-          </div>
+          <CardTitle>Daftar Anggota Keluarga</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-4">

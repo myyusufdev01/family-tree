@@ -1,6 +1,7 @@
 import os
 import logging
 from collections import deque
+from datetime import date
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,7 @@ load_dotenv()
 
 from db.firestore import (
     add_member, get_member, update_member, delete_member,
-    list_members_paginated, search_members, get_db,
+    list_members, list_members_paginated, search_members, get_db,
     link_parent_child, link_spouses, link_siblings,
     unlink_parent_child, unlink_spouses, unlink_siblings,
     approve_user, revoke_user, list_approved_users,
@@ -241,6 +242,133 @@ def get_tree(
         "truncated": truncated,
         "total_nodes": len(by_id),
     }
+# ── Dashboard stats ───────────────────────────────────────────────────────────
+
+def _parse_iso_date(value: Optional[str]):
+    """Parse tanggal ISO (YYYY-MM-DD) menjadi datetime.date. None jika tidak valid."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
+def _age_on(birth: date, ref: date) -> int:
+    return ref.year - birth.year - ((ref.month, ref.day) < (birth.month, birth.day))
+
+
+@app.get("/api/dashboard/stats")
+def dashboard_stats(user_id: int = Query(0)):
+    """Statistik ringkas untuk dashboard, dihitung dari seluruh anggota milik user."""
+    members = list_members(user_id)
+    today = date.today()
+
+    total = len(members)
+    male_count = sum(1 for m in members if m.gender == "male")
+    female_count = sum(1 for m in members if m.gender == "female")
+    deceased_count = sum(1 for m in members if m.death_date)
+    without_birthdate_count = sum(1 for m in members if not m.birth_date)
+
+    # ── Kelompok usia (usia saat ini; bila wafat, usia saat wafat) ──
+    age_groups = [
+        {"key": "anak", "label": "Anak-anak (0–11)", "count": 0},
+        {"key": "remaja", "label": "Remaja (12–17)", "count": 0},
+        {"key": "dewasa", "label": "Dewasa (18–59)", "count": 0},
+        {"key": "lansia", "label": "Lansia (60+)", "count": 0},
+        {"key": "unknown", "label": "Usia tidak diketahui", "count": 0},
+    ]
+    group_idx = {g["key"]: i for i, g in enumerate(age_groups)}
+    ages: list[int] = []
+
+    for m in members:
+        birth = _parse_iso_date(m.birth_date)
+        if not birth:
+            age_groups[group_idx["unknown"]]["count"] += 1
+            continue
+        death = _parse_iso_date(m.death_date)
+        ref = death or today
+        age = _age_on(birth, ref)
+        ages.append(age)
+        if age < 12:
+            key = "anak"
+        elif age < 18:
+            key = "remaja"
+        elif age < 60:
+            key = "dewasa"
+        else:
+            key = "lansia"
+        age_groups[group_idx[key]]["count"] += 1
+
+    avg_age = round(sum(ages) / len(ages), 1) if ages else None
+
+    # ── Relasi keluarga ──
+    spouse_pairs = {frozenset((m.id, s)) for m in members for s in m.spouse_ids}
+    parent_child_pairs = {frozenset((p, m.id)) for m in members for p in m.parent_ids}
+    connected_count = sum(
+        1 for m in members
+        if m.parent_ids or m.child_ids or m.spouse_ids or m.sibling_ids
+    )
+
+    # ── Ulang tahun dalam 14 hari ke depan ──
+    upcoming_birthdays = []
+    for m in members:
+        birth = _parse_iso_date(m.birth_date)
+        if not birth or _parse_iso_date(m.death_date):
+            continue
+        try:
+            next_birth = birth.replace(year=today.year)
+        except ValueError:
+            continue  # mis. 29 Februari di tahun non-kabisat
+        if next_birth < today:
+            try:
+                next_birth = birth.replace(year=today.year + 1)
+            except ValueError:
+                continue
+        days_until = (next_birth - today).days
+        if 0 <= days_until <= 14:
+            upcoming_birthdays.append(
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "gender": m.gender,
+                    "birth_date": m.birth_date,
+                    "days_until": days_until,
+                }
+            )
+    upcoming_birthdays.sort(key=lambda x: x["days_until"])
+
+    # ── Anggota terbaru (berdasarkan created_at) ──
+    recent_members = sorted(
+        members, key=lambda m: m.created_at or "", reverse=True
+    )[:5]
+
+    return {
+        "total_members": total,
+        "male_count": male_count,
+        "female_count": female_count,
+        "deceased_count": deceased_count,
+        "avg_age": avg_age,
+        "age_groups": age_groups,
+        "couples_count": len(spouse_pairs),
+        "parent_child_count": len(parent_child_pairs),
+        "connected_count": connected_count,
+        "isolated_count": total - connected_count,
+        "without_birthdate_count": without_birthdate_count,
+        "upcoming_birthdays": upcoming_birthdays[:6],
+        "recent_members": [
+            {
+                "id": m.id,
+                "name": m.name,
+                "gender": m.gender,
+                "birth_date": m.birth_date,
+                "created_at": m.created_at,
+            }
+            for m in recent_members
+        ],
+    }
+
+
 # ── Admin endpoints ──────────────────────────────────────────────────────────
 
 @app.get("/api/admin/users")

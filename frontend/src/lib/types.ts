@@ -46,3 +46,41 @@ export interface AdminStats {
   total_members: number;
   total_trees: number;
 }
+
+export interface AgeGroup {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface UpcomingBirthday {
+  id: string;
+  name: string;
+  gender: Member["gender"];
+  birth_date: string | null;
+  days_until: number;
+}
+
+export interface RecentMember {
+  id: string;
+  name: string;
+  gender: Member["gender"];
+  birth_date: string | null;
+  created_at: string | null;
+}
+
+export interface DashboardStats {
+  total_members: number;
+  male_count: number;
+  female_count: number;
+  deceased_count: number;
+  avg_age: number | null;
+  age_groups: AgeGroup[];
+  couples_count: number;
+  parent_child_count: number;
+  connected_count: number;
+  isolated_count: number;
+  without_birthdate_count: number;
+  upcoming_birthdays: UpcomingBirthday[];
+  recent_members: RecentMember[];
+}

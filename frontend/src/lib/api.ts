@@ -1,6 +1,6 @@
 import type {
   Member, FamilyTree, PaginatedMembers, SearchResults,
-  AdminUsers, AdminStats,
+  AdminUsers, AdminStats, DashboardStats,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -93,4 +93,10 @@ export async function getAdminUsers() {
 
 export async function getAdminStats() {
   return request<AdminStats>("/api/admin/stats?user_id=0");
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export async function getDashboardStats() {
+  return request<DashboardStats>("/api/dashboard/stats?user_id=0");
 }
