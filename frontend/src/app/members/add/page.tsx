@@ -17,6 +17,12 @@ import {
 import { DateInput } from "@/components/ui/date-input";
 import { createMember } from "@/lib/api";
 import { GENDER_LABELS } from "@/lib/labels";
+import type { NewMemberRelation } from "@/lib/types";
+
+const RELATION_LABELS: Record<NewMemberRelation, string> = {
+  child: "👶 Anak",
+  spouse: "💑 Pasangan",
+};
 
 export default function AddMemberPage() {
   const router = useRouter();
@@ -24,6 +30,7 @@ export default function AddMemberPage() {
   const [form, setForm] = useState({
     name: "",
     gender: "male" as "male" | "female",
+    relation: "child" as NewMemberRelation,
     birth_date: "",
     death_date: "",
     phone: "",
@@ -38,6 +45,7 @@ export default function AddMemberPage() {
       const member = await createMember({
         name: form.name.trim(),
         gender: form.gender,
+        relation: form.relation,
         birth_date: form.birth_date || null,
         death_date: form.death_date || null,
         phone: form.phone || null,
@@ -57,7 +65,8 @@ export default function AddMemberPage() {
         <CardHeader>
           <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Anggota baru akan otomatis tercatat sebagai <b>anak dari akun Anda</b> di silsilah.
+            Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
+            <b>pasangan</b> dari akun Anda di silsilah.
           </p>
         </CardHeader>
         <CardContent>
@@ -87,6 +96,26 @@ export default function AddMemberPage() {
                 <SelectContent>
                   <SelectItem value="male">👨 Laki-laki</SelectItem>
                   <SelectItem value="female">👩 Perempuan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Hubungan dengan Anda</Label>
+              <Select
+                value={form.relation}
+                onValueChange={(v) =>
+                  setForm({ ...form, relation: v as NewMemberRelation })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {(v) => RELATION_LABELS[(v ?? "child") as NewMemberRelation]}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="child">👶 Anak</SelectItem>
+                  <SelectItem value="spouse">💑 Pasangan</SelectItem>
                 </SelectContent>
               </Select>
             </div>

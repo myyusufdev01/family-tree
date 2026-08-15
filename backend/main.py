@@ -2,7 +2,7 @@ import os
 import logging
 from collections import deque
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -55,6 +55,8 @@ class MemberCreate(BaseModel):
     death_date: Optional[str] = None
     phone: Optional[str] = None
     notes: Optional[str] = None
+    # Hubungan anggota baru dengan user penambah: "child" (anak) | "spouse" (pasangan).
+    relation: Literal["child", "spouse"] = "child"
 
 class MemberUpdate(BaseModel):
     name: Optional[str] = None
@@ -143,9 +145,10 @@ def create_member(
     - Hanya user yang akun Auth0-nya sudah tertaut ke anggota silsilah
       (``auth0_sub``) yang boleh menambah anggota; admin (``ADMIN_SUBS``) boleh
       bypass agar bisa setup awal.
-    - Anggota baru otomatis menjadi **anak langsung** dari anggota yang
-      mewakili user penambah (sehingga selalu keturunan user). Admin yang
-      belum tertaut (setup awal) menambah tanpa orang tua.
+    - Anggota baru otomatis terhubung ke anggota yang mewakili user penambah:
+      sebagai **anak** (``relation=child``, default) atau **pasangan**
+      (``relation=spouse``). Admin yang belum tertaut (setup awal) menambah
+      tanpa relasi.
     """
     from config import ADMIN_SUBS
 
@@ -169,10 +172,13 @@ def create_member(
     )
     created = add_member(user_id, member)
 
-    # Otomatis jadi anak dari user yang menambahkan (bila user sudah tertaut).
+    # Otomatis jadi anak/pasangan dari user yang menambahkan (bila user tertaut).
     me = get_member_by_sub(user_id, user_sub)
     if me is not None:
-        link_parent_child(user_id, me.id, created.id)
+        if body.relation == "spouse":
+            link_spouses(user_id, me.id, created.id)
+        else:
+            link_parent_child(user_id, me.id, created.id)
         created = get_member(user_id, created.id) or created
 
     return created.to_dict()

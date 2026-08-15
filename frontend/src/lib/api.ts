@@ -1,6 +1,6 @@
 import type {
   Member, FamilyTree, PaginatedMembers, SearchResults,
-  AdminUsers, AdminStats, DashboardStats, Me,
+  AdminUsers, AdminStats, DashboardStats, Me, NewMemberRelation,
 } from "./types";
 import { getValidAccessToken, refreshAccessToken } from "./auth-token";
 
@@ -55,7 +55,9 @@ export async function getMember(id: string) {
   return request<Member>(`/api/members/${id}?user_id=0`);
 }
 
-export async function createMember(data: Partial<Member>) {
+export async function createMember(
+  data: Partial<Member> & { relation?: NewMemberRelation },
+) {
   return request<Member>("/api/members?user_id=0", {
     method: "POST",
     body: JSON.stringify(data),

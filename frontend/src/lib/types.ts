@@ -40,6 +40,9 @@ export interface SearchResults {
   results: Member[];
 }
 
+/** Hubungan anggota baru dengan user yang menambah: anak atau pasangan. */
+export type NewMemberRelation = "child" | "spouse";
+
 export interface Me {
   member: Member | null;
   is_admin: boolean;
