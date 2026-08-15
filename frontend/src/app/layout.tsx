@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import Nav from "@/components/nav";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -19,17 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="flex items-center gap-2 font-semibold">
               🌳 Family Tree
             </Link>
-            <nav className="ml-auto flex items-center gap-4 text-sm">
-              <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-                Dashboard
-              </Link>
-              <Link href="/tree" className="text-muted-foreground hover:text-foreground transition-colors">
-                Pohon
-              </Link>
-              <Link href="/members/add" className="text-muted-foreground hover:text-foreground transition-colors">
-                Tambah
-              </Link>
-            </nav>
+            <Nav />
           </div>
         </header>
         <main className="container mx-auto px-4 py-6">{children}</main>
