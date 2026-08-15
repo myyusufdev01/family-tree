@@ -42,6 +42,7 @@ function LoginScreen() {
                 returnTo:
                   window.location.pathname + window.location.search,
               },
+              authorizationParams: { screen_hint: "login" },
             })
           }
         >

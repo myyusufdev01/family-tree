@@ -31,6 +31,7 @@ export default function AuthButtons() {
         onClick={() =>
           loginWithRedirect({
             appState: { returnTo: pathname || "/" },
+            authorizationParams: { screen_hint: "login" },
           })
         }
       >
