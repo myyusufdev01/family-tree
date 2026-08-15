@@ -13,7 +13,6 @@ const NAV_ITEMS: { href: string; label: string; isActive: (p: string) => boolean
       p === "/members" || (p.startsWith("/members/") && !p.startsWith("/members/add")),
   },
   { href: "/tree", label: "Pohon", isActive: (p) => p.startsWith("/tree") },
-  { href: "/members/add", label: "Tambah", isActive: (p) => p === "/members/add" },
 ];
 
 export default function Nav() {
