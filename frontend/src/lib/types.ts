@@ -30,6 +30,8 @@ export interface PaginatedMembers {
   page: number;
   per_page: number;
   has_more: boolean;
+  total?: number;
+  total_pages?: number;
 }
 
 export interface SearchResults {

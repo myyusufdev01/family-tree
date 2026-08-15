@@ -65,16 +65,28 @@ def list_members(user_id: int) -> list[Member]:
     return [Member.from_dict(d.to_dict()) for d in docs]
 
 
-def list_members_paginated(user_id: int, start_after_name: str | None = None) -> tuple[list[Member], str | None]:
-    """Return PAGE_SIZE members + next cursor (name_lower value), or None if last page."""
-    ref = _members_ref(user_id).order_by("name_lower").limit(PAGE_SIZE + 1)
-    if start_after_name:
-        ref = ref.start_after({"name_lower": start_after_name})
+def list_members_paginated(
+    user_id: int,
+    per_page: int = PAGE_SIZE,
+    offset: int = 0,
+) -> tuple[list[Member], str | None]:
+    """Return `per_page` members mulai dari `offset` + next cursor, atau None jika sudah halaman terakhir."""
+    ref = (
+        _members_ref(user_id)
+        .order_by("name_lower")
+        .offset(offset)
+        .limit(per_page + 1)
+    )
     docs = list(ref.stream())
-    has_more = len(docs) > PAGE_SIZE
-    members = [Member.from_dict(d.to_dict()) for d in docs[:PAGE_SIZE]]
+    has_more = len(docs) > per_page
+    members = [Member.from_dict(d.to_dict()) for d in docs[:per_page]]
     next_cursor = members[-1].name.lower() if has_more else None
     return members, next_cursor
+
+
+def count_members(user_id: int) -> int:
+    """Jumlah seluruh anggota milik user (untuk pagination & statistik)."""
+    return len(list(_members_ref(user_id).stream()))
 
 
 def search_members(user_id: int, query: str) -> list[Member]:

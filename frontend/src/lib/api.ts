@@ -19,8 +19,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Members ─────────────────────────────────────────────────────────────────
 
-export async function listMembers(page = 1) {
-  return request<PaginatedMembers>(`/api/members?page=${page}&per_page=20&user_id=0`);
+export async function listMembers(page = 1, perPage = 20) {
+  return request<PaginatedMembers>(`/api/members?page=${page}&per_page=${perPage}&user_id=0`);
 }
 
 export async function searchMembers(q: string) {

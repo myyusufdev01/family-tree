@@ -21,18 +21,27 @@ import type { Member } from "@/lib/types";
 import DashboardStats from "@/components/dashboard/dashboard-stats";
 
 export default function Dashboard() {
+  const PER_PAGE = 20;
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Member[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
-        const data = await listMembers();
-        if (!cancelled) setMembers(data.members);
+        const data = await listMembers(page, PER_PAGE);
+        if (!cancelled) {
+          setMembers(data.members);
+          setTotalPages(data.total_pages ?? 1);
+          setTotal(data.total ?? 0);
+        }
       } catch (err: unknown) {
         console.error(err instanceof Error ? err.message : "Gagal memuat data");
       } finally {
@@ -42,7 +51,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page]);
 
   async function handleSearch() {
     if (!searchQuery.trim()) {
@@ -85,7 +94,14 @@ export default function Dashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Anggota Keluarga</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Daftar Anggota Keluarga</CardTitle>
+            {!searchResults && (
+              <span className="text-sm text-muted-foreground">
+                {total} anggota
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-4">
@@ -148,6 +164,36 @@ export default function Dashboard() {
                 ))}
               </TableBody>
             </Table>
+          )}
+
+          {!searchResults && totalPages > 1 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <p className="text-xs text-muted-foreground">
+                Menampilkan {(page - 1) * PER_PAGE + 1}–
+                {Math.min(page * PER_PAGE, total)} dari {total} anggota
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  ‹ Sebelumnya
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Halaman {page} dari {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages || loading}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Berikutnya ›
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

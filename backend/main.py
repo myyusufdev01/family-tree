@@ -12,7 +12,7 @@ load_dotenv()
 
 from db.firestore import (
     add_member, get_member, update_member, delete_member,
-    list_members, list_members_paginated, search_members, get_db,
+    list_members, list_members_paginated, count_members, search_members, get_db,
     link_parent_child, link_spouses, link_siblings,
     unlink_parent_child, unlink_spouses, unlink_siblings,
     approve_user, revoke_user, list_approved_users,
@@ -73,13 +73,18 @@ def list_members_endpoint(
 ):
     members, next_cursor = list_members_paginated(
         user_id,
-        start_after_name=None if page == 1 else None,
+        per_page=per_page,
+        offset=(page - 1) * per_page,
     )
+    total = count_members(user_id)
+    total_pages = (total + per_page - 1) // per_page if total else 0
     return {
         "members": [m.to_dict() for m in members],
         "page": page,
         "per_page": per_page,
         "has_more": next_cursor is not None,
+        "total": total,
+        "total_pages": total_pages,
     }
 
 
