@@ -17,6 +17,12 @@ export interface Member {
 export interface FamilyTree {
   member: Member;
   family: Record<string, Member>;
+  /** Generasi relatif anggota terhadap fokus (root=0, orang tua=-1, anak=+1, dst.) */
+  generations?: Record<string, number>;
+  root_id?: string;
+  /** true jika pohon dipotong karena melewati batas anggota */
+  truncated?: boolean;
+  total_nodes?: number;
 }
 
 export interface PaginatedMembers {

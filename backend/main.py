@@ -1,5 +1,6 @@
 import os
 import logging
+from collections import deque
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -166,25 +167,79 @@ def unlink_members(body: LinkRequest, user_id: int = Query(0)):
     raise HTTPException(status_code=400, detail="Invalid link type")
 # ── Tree endpoint ────────────────────────────────────────────────────────────
 
+# Batas pohon keluarga agar tetap ringan walau total anggota banyak (mis. 1000+).
+MAX_TREE_NODES = 80
+MAX_DEPTH_UP = 3
+MAX_DEPTH_DOWN = 3
+
+
 @app.get("/api/members/{member_id}/tree")
-def get_tree(member_id: str, user_id: int = Query(0)):
+def get_tree(
+    member_id: str,
+    user_id: int = Query(0),
+    max_nodes: int = Query(MAX_TREE_NODES, ge=10, le=200),
+    depth_up: int = Query(MAX_DEPTH_UP, ge=0, le=5),
+    depth_down: int = Query(MAX_DEPTH_DOWN, ge=0, le=5),
+):
+    """Pohon keluarga terfokus pada satu anggota.
+
+    Traversal BFS mengikuti generasi relatif terhadap anggota fokus
+    (root=0, orang tua=-1, kakek/nenek=-2, anak=+1, cucu=+2, dst.) dan
+    dibatasi oleh `max_nodes` + `depth_up`/`depth_down` supaya tetap
+    ringan walau total anggota mencapai ribuan.
+    """
     member = get_member(user_id, member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    rel_ids = set(member.parent_ids + member.spouse_ids + member.child_ids + member.sibling_ids)
-    for pid in member.parent_ids:
-        p = get_member(user_id, pid)
-        if p:
-            rel_ids.update(p.parent_ids)
-            rel_ids.update(p.child_ids)
+
     by_id = {member.id: member}
-    for rid in rel_ids:
-        m = get_member(user_id, rid)
-        if m:
-            by_id[rid] = m
+    generations = {member.id: 0}
+    truncated = False
+    queue = deque([member.id])
+
+    def try_add(rid: str, gen: int) -> None:
+        nonlocal truncated
+        if rid in by_id:
+            return
+        if len(by_id) >= max_nodes:
+            truncated = True
+            return
+        rel = get_member(user_id, rid)
+        if rel is None:
+            return
+        by_id[rid] = rel
+        generations[rid] = gen
+        queue.append(rid)
+
+    while queue:
+        if len(by_id) >= max_nodes:
+            truncated = True
+            break
+        mid = queue.popleft()
+        m = by_id[mid]
+        g = generations[mid]
+
+        rel_spec = [("sibling_ids", 0), ("spouse_ids", 0)]
+        if g - 1 >= -depth_up:
+            rel_spec.append(("parent_ids", -1))
+        if g + 1 <= depth_down:
+            rel_spec.append(("child_ids", 1))
+
+        for attr, delta in rel_spec:
+            for rid in getattr(m, attr):
+                try_add(rid, g + delta)
+                if truncated:
+                    break
+            if truncated:
+                break
+
     return {
         "member": member.to_dict(),
         "family": {mid: m.to_dict() for mid, m in by_id.items()},
+        "generations": {str(mid): g for mid, g in generations.items()},
+        "root_id": member.id,
+        "truncated": truncated,
+        "total_nodes": len(by_id),
     }
 # ── Admin endpoints ──────────────────────────────────────────────────────────
 

@@ -126,6 +126,9 @@ export default function MemberDetailPage() {
               {member.gender === "male" ? "👨" : "👩"} {member.name}
             </CardTitle>
             <div className="flex gap-2">
+              <Link href={`/tree?member=${member.id}`}>
+                <Button size="sm">🌳 Pohon</Button>
+              </Link>
               <Link href={`/members/${member.id}/edit`}>
                 <Button variant="outline" size="sm">✏️ Edit</Button>
               </Link>

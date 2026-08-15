@@ -23,6 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
                 Dashboard
               </Link>
+              <Link href="/tree" className="text-muted-foreground hover:text-foreground transition-colors">
+                Pohon
+              </Link>
               <Link href="/members/add" className="text-muted-foreground hover:text-foreground transition-colors">
                 Tambah
               </Link>

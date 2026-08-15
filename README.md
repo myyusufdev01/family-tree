@@ -25,8 +25,8 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 │   └── .env                  # Kredensial lokal (tidak di-commit)
 ├── frontend/                 # Web UI (Next.js 16)
 │   └── src/
-│       ├── app/              # Halaman: dashboard, tambah/edit, detail + silsilah
-│       ├── components/ui/    # Komponen shadcn/ui
+│       ├── app/              # Halaman: dashboard, tambah/edit, detail + silsilah, pohon keluarga
+│       ├── components/       # Komponen UI (shadcn/ui) & tree view
 │       └── lib/              # API client, types, util
 ├── dev.sh                    # Jalankan backend + frontend sekaligus di local
 ├── Dockerfile                # Build image backend untuk Cloud Run
@@ -37,7 +37,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 
 - Dashboard daftar anggota (paginasi + pencarian berdasarkan nama)
 - Tambah / edit / hapus anggota (nama, jenis kelamin, tanggal lahir & wafat, telepon, catatan)
-- Detail anggota + **pohon keluarga** (orang tua, pasangan, anak)
+- Detail anggota + **pohon keluarga** visual (terfokus maks. 80 anggota, 3 generasi ke atas/bawah)
 - Hubungkan / putuskan relasi orang tua–anak, pasangan, dan **saudara kandung**
 - Format tanggal DD/MM/YYYY
 - API admin (approve user & statistik)
@@ -107,7 +107,7 @@ Lalu buka **http://localhost:3000**. Dokumentasi API backend (Swagger UI) tersed
 | DELETE | `/api/members/{id}`             | Hapus anggota                              |
 | POST   | `/api/members/link`             | Hubungkan relasi (`parent_child` / `spouse` / `sibling`) |
 | POST   | `/api/members/unlink`           | Putuskan relasi                                        |
-| GET    | `/api/members/{id}/tree`        | Pohon keluarga dari seorang anggota        |
+| GET    | `/api/members/{id}/tree`        | Pohon keluarga terfokus (`max_nodes`, `depth_up`, `depth_down`) |
 | GET    | `/api/admin/users`              | Daftar user ter-approve (admin)            |
 | POST   | `/api/admin/users`              | Approve user (admin)                       |
 | DELETE | `/api/admin/users/{id}`         | Revoke user (admin)                        |

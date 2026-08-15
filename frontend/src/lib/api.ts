@@ -71,8 +71,18 @@ export async function unlinkMembers(type: RelationType, memberA: string, memberB
 
 // ── Tree ────────────────────────────────────────────────────────────────────
 
-export async function getTree(memberId: string) {
-  return request<FamilyTree>(`/api/members/${memberId}/tree?user_id=0`);
+export interface TreeOptions {
+  max_nodes?: number;
+  depth_up?: number;
+  depth_down?: number;
+}
+
+export async function getTree(memberId: string, options?: TreeOptions) {
+  const params = new URLSearchParams({ user_id: "0" });
+  if (options?.max_nodes) params.set("max_nodes", String(options.max_nodes));
+  if (options?.depth_up !== undefined) params.set("depth_up", String(options.depth_up));
+  if (options?.depth_down !== undefined) params.set("depth_down", String(options.depth_down));
+  return request<FamilyTree>(`/api/members/${memberId}/tree?${params.toString()}`);
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────
