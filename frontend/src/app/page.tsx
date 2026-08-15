@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import DashboardStats from "@/components/dashboard/dashboard-stats";
+import AddMemberButton from "@/components/members/add-member-button";
 
 export default function Dashboard() {
   return (
@@ -19,9 +20,7 @@ export default function Dashboard() {
           <Link href="/tree">
             <Button variant="outline">🌳 Lihat Pohon</Button>
           </Link>
-          <Link href="/members/add">
-            <Button>➕ Tambah Anggota</Button>
-          </Link>
+          <AddMemberButton />
         </div>
       </div>
 

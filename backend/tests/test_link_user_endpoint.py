@@ -1,17 +1,13 @@
 """Endpoint tests: POST /api/members/{id}/link-user — khusus admin.
 
-Firestore di-mock via monkeypatch fungsi pada namespace ``main``; dependensi auth
-diganti dengan sub tetap lewat ``dependency_overrides``.
+Firestore di-mock via monkeypatch fungsi pada namespace ``main``; sub user diatur
+lewat fixture ``set_sub``.
 """
 import config
 import main
-from fastapi.testclient import TestClient
 from models.member import Member
 
 TEST_SUB = "google-oauth2|admin"
-
-main.app.dependency_overrides[main.get_user_sub] = lambda: TEST_SUB
-client = TestClient(main.app)
 
 
 def _member(mid: str, auth0_sub: str | None = None) -> Member:
@@ -22,14 +18,16 @@ def _as_admin(monkeypatch):
     monkeypatch.setattr(config, "ADMIN_SUBS", {TEST_SUB})
 
 
-def test_non_admin_ditolak_403(monkeypatch):
+def test_non_admin_ditolak_403(client, set_sub):
     # ADMIN_SUBS default kosong → TEST_SUB bukan admin
+    set_sub(TEST_SUB)
     resp = client.post("/api/members/anak/link-user?user_id=0", json={"sub": "google-oauth2|anak"})
     assert resp.status_code == 403
     assert "admin" in resp.json()["detail"].lower()
 
 
-def test_admin_boleh_menautkan_anggota_manapun(monkeypatch):
+def test_admin_boleh_menautkan_anggota_manapun(client, set_sub, monkeypatch):
+    set_sub(TEST_SUB)
     _as_admin(monkeypatch)
     target = _member("sepupu")  # sengaja bukan keturunan — admin bebas
 
@@ -47,7 +45,8 @@ def test_admin_boleh_menautkan_anggota_manapun(monkeypatch):
     assert resp.json()["auth0_sub"] == "google-oauth2|sepupu"
 
 
-def test_admin_bisa_menautkan_dirinya_sendiri_setup_awal(monkeypatch):
+def test_admin_bisa_menautkan_dirinya_sendiri_setup_awal(client, set_sub, monkeypatch):
+    set_sub(TEST_SUB)
     _as_admin(monkeypatch)
     target = _member("kakek")
 
@@ -65,7 +64,8 @@ def test_admin_bisa_menautkan_dirinya_sendiri_setup_awal(monkeypatch):
     assert resp.json()["auth0_sub"] == TEST_SUB
 
 
-def test_admin_boleh_mengganti_tautan_lama(monkeypatch):
+def test_admin_boleh_mengganti_tautan_lama(client, set_sub, monkeypatch):
+    set_sub(TEST_SUB)
     _as_admin(monkeypatch)
     target = _member("anak", auth0_sub="google-oauth2|orang_lama")
 
@@ -83,7 +83,8 @@ def test_admin_boleh_mengganti_tautan_lama(monkeypatch):
     assert resp.json()["auth0_sub"] == "google-oauth2|orang_baru"
 
 
-def test_member_tidak_ditemukan_404(monkeypatch):
+def test_member_tidak_ditemukan_404(client, set_sub, monkeypatch):
+    set_sub(TEST_SUB)
     _as_admin(monkeypatch)
     monkeypatch.setattr(main, "get_member", lambda user_id, mid: None)
 
@@ -91,7 +92,8 @@ def test_member_tidak_ditemukan_404(monkeypatch):
     assert resp.status_code == 404
 
 
-def test_sub_kosong_ditolak_400(monkeypatch):
+def test_sub_kosong_ditolak_400(client, set_sub, monkeypatch):
+    set_sub(TEST_SUB)
     _as_admin(monkeypatch)
     resp = client.post("/api/members/anak/link-user?user_id=0", json={"sub": "   "})
     assert resp.status_code == 400

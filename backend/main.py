@@ -134,9 +134,26 @@ def get_me(
 @app.post("/api/members")
 def create_member(
     body: MemberCreate,
-    _auth: dict = Depends(get_current_user),
+    user_sub: str = Depends(get_user_sub),
     user_id: int = Query(0),
 ):
+    """Tambah anggota baru.
+
+    Aturan akses: hanya user yang akun Auth0-nya sudah tertaut ke anggota
+    silsilah (``auth0_sub``) yang boleh menambah anggota. Admin (``ADMIN_SUBS``)
+    boleh bypass agar bisa setup awal (mis. menambah anggota sebelum tertaut).
+    """
+    from config import ADMIN_SUBS
+
+    if user_sub not in ADMIN_SUBS and get_member_by_sub(user_id, user_sub) is None:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Hanya user yang sudah tertaut ke anggota silsilah yang dapat "
+                "menambah anggota. Hubungi admin untuk menautkan akun Anda."
+            ),
+        )
+
     member = Member(
         id="",
         name=body.name,

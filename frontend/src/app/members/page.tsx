@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import MemberTable from "@/components/members/member-table";
+import AddMemberButton from "@/components/members/add-member-button";
 
 export const metadata: Metadata = {
   title: "Daftar Anggota | Family Tree",
@@ -17,9 +16,7 @@ export default function MembersListPage() {
             Seluruh anggota keluarga dalam satu daftar, lengkap dengan pencarian dan pagination.
           </p>
         </div>
-        <Link href="/members/add">
-          <Button>➕ Tambah Anggota</Button>
-        </Link>
+        <AddMemberButton />
       </div>
 
       <MemberTable />
