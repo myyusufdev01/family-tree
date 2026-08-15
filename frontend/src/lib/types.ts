@@ -63,6 +63,20 @@ export interface UpcomingBirthday {
   days_until: number;
 }
 
+export interface GenerationLevel {
+  level: number;
+  label: string;
+  count: number;
+}
+
+export interface PersonBrief {
+  id: string;
+  name: string;
+  gender: Member["gender"];
+  birth_date: string | null;
+  age: number;
+}
+
 export interface RecentMember {
   id: string;
   name: string;
@@ -84,5 +98,13 @@ export interface DashboardStats {
   isolated_count: number;
   without_birthdate_count: number;
   upcoming_birthdays: UpcomingBirthday[];
+  birthdays_this_month?: UpcomingBirthday[];
+  generation_depth?: number;
+  generation_levels?: GenerationLevel[];
+  oldest_living?: PersonBrief | null;
+  youngest_member?: PersonBrief | null;
+  parents_count?: number;
+  single_parent_count?: number;
+  without_phone_count?: number;
   recent_members: RecentMember[];
 }

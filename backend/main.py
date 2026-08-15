@@ -343,6 +343,83 @@ def dashboard_stats(user_id: int = Query(0)):
             )
     upcoming_birthdays.sort(key=lambda x: x["days_until"])
 
+    # ── Generasi keluarga (rantai orang tua → anak; 1 = generasi tertua) ──
+    by_id = {m.id: m for m in members}
+    generation_of: dict[str, int] = {}
+    pending = deque()
+    for m in members:
+        if not m.parent_ids or all(p not in by_id for p in m.parent_ids):
+            generation_of[m.id] = 1
+            pending.append(m.id)
+    while pending:
+        mid = pending.popleft()
+        for cid in by_id[mid].child_ids:
+            if cid in by_id and cid not in generation_of:
+                generation_of[cid] = generation_of[mid] + 1
+                pending.append(cid)
+    for m in members:  # relasi yang terputus dianggap generasi 1
+        if m.id not in generation_of:
+            generation_of[m.id] = 1
+    level_counts: dict[int, int] = {}
+    for g in generation_of.values():
+        level_counts[g] = level_counts.get(g, 0) + 1
+    generation_levels = [
+        {"level": lvl, "label": f"Generasi {lvl}", "count": level_counts[lvl]}
+        for lvl in sorted(level_counts)
+    ]
+    generation_depth = max(level_counts) if level_counts else 0
+
+    # ── Ulang tahun bulan ini ──
+    birthdays_this_month = []
+    for m in members:
+        birth = _parse_iso_date(m.birth_date)
+        if not birth or _parse_iso_date(m.death_date):
+            continue
+        if birth.month == today.month:
+            try:
+                this_year_birth = birth.replace(year=today.year)
+            except ValueError:
+                continue
+            birthdays_this_month.append(
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "gender": m.gender,
+                    "birth_date": m.birth_date,
+                    "days_until": (this_year_birth - today).days,
+                }
+            )
+    birthdays_this_month.sort(key=lambda x: (x["days_until"] < 0, x["days_until"]))
+
+    # ── Anggota hidup termuda & tertua ──
+    living = [
+        m for m in members
+        if m.birth_date and not _parse_iso_date(m.death_date)
+    ]
+    oldest_living = None
+    youngest_member = None
+    if living:
+        by_birth = sorted(living, key=lambda m: m.birth_date or "")
+        oldest_living = {
+            "id": by_birth[0].id,
+            "name": by_birth[0].name,
+            "gender": by_birth[0].gender,
+            "birth_date": by_birth[0].birth_date,
+            "age": _age_on(_parse_iso_date(by_birth[0].birth_date), today),
+        }
+        youngest_member = {
+            "id": by_birth[-1].id,
+            "name": by_birth[-1].name,
+            "gender": by_birth[-1].gender,
+            "birth_date": by_birth[-1].birth_date,
+            "age": _age_on(_parse_iso_date(by_birth[-1].birth_date), today),
+        }
+
+    # ── Peran & kelengkapan data ──
+    parents_count = sum(1 for m in members if m.child_ids)
+    single_parent_count = sum(1 for m in members if m.child_ids and not m.spouse_ids)
+    without_phone_count = sum(1 for m in members if not m.phone)
+
     # ── Anggota terbaru (berdasarkan created_at) ──
     recent_members = sorted(
         members, key=lambda m: m.created_at or "", reverse=True
@@ -361,6 +438,14 @@ def dashboard_stats(user_id: int = Query(0)):
         "isolated_count": total - connected_count,
         "without_birthdate_count": without_birthdate_count,
         "upcoming_birthdays": upcoming_birthdays[:6],
+        "birthdays_this_month": birthdays_this_month[:6],
+        "generation_depth": generation_depth,
+        "generation_levels": generation_levels,
+        "oldest_living": oldest_living,
+        "youngest_member": youngest_member,
+        "parents_count": parents_count,
+        "single_parent_count": single_parent_count,
+        "without_phone_count": without_phone_count,
         "recent_members": [
             {
                 "id": m.id,

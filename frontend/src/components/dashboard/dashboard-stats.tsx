@@ -110,6 +110,33 @@ function SkeletonCards() {
           </Card>
         ))}
       </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={`row2-${i}`}>
+            <CardHeader>
+              <Skeleton className="h-5 w-44" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Card key={`mini-${i}`}>
+            <CardContent className="flex items-center gap-3 py-3">
+              <Skeleton className="size-6 rounded-full" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-10" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </>
   );
 }
@@ -254,6 +281,133 @@ function StatSection({ stats }: { stats: DashboardStats }) {
         </Card>
       </div>
 
+      {/* Generasi, usia ekstrem, ulang tahun bulan ini */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>🌳 Generasi Keluarga</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-2xl font-bold">
+                {stats.generation_depth ?? 0}{" "}
+                <span className="text-sm font-normal text-muted-foreground">generasi</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tingkat silsilah keluarga yang tercatat
+              </p>
+            </div>
+            <div className="space-y-2">
+              {stats.generation_levels && stats.generation_levels.length > 0 ? (
+                stats.generation_levels.map((g) => (
+                  <div key={g.level} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{g.label}</span>
+                      <span className="font-semibold">{g.count}</span>
+                    </div>
+                    <Bar value={g.count} total={total} className="bg-teal-500" />
+                  </div>
+                ))
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  Belum ada data relasi keluarga.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>🏆 Termuda & Tertua</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stats.youngest_member ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xl">👶</span>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/members/${stats.youngest_member.id}`}
+                    className="block truncate font-medium hover:underline"
+                  >
+                    {stats.youngest_member.gender === "male" ? "👨" : "👩"}{" "}
+                    {stats.youngest_member.name}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    Termuda · {stats.youngest_member.age} tahun
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Belum ada data usia anggota.
+              </p>
+            )}
+            <Separator />
+            {stats.oldest_living ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xl">👴</span>
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/members/${stats.oldest_living.id}`}
+                    className="block truncate font-medium hover:underline"
+                  >
+                    {stats.oldest_living.gender === "male" ? "👨" : "👩"}{" "}
+                    {stats.oldest_living.name}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    Tertua · {stats.oldest_living.age} tahun
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Belum ada data usia anggota.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>📅 Ulang Tahun Bulan Ini</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!stats.birthdays_this_month || stats.birthdays_this_month.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Tidak ada ulang tahun bulan ini.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {stats.birthdays_this_month.map((b) => (
+                  <li key={b.id} className="flex items-center gap-2 py-2">
+                    <Link
+                      href={`/members/${b.id}`}
+                      className="min-w-0 flex-1 truncate font-medium hover:underline"
+                    >
+                      {b.gender === "male" ? "👨" : "👩"} {b.name}
+                    </Link>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {shortDate(b.birth_date)}
+                    </span>
+                    <Badge
+                      variant={
+                        b.days_until < 0
+                          ? "outline"
+                          : b.days_until <= 1
+                            ? "default"
+                            : "secondary"
+                      }
+                    >
+                      {b.days_until < 0 ? "sudah lewat" : daysLabel(b.days_until)}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Ringkasan relasi & kelengkapan data */}
       <Card>
         <CardHeader className="pb-3">
@@ -265,8 +419,12 @@ function StatSection({ stats }: { stats: DashboardStats }) {
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MiniStat emoji="💑" label="Pasangan" value={stats.couples_count} />
           <MiniStat emoji="🧑‍🍼" label="Relasi Orang Tua–Anak" value={stats.parent_child_count} />
+          <MiniStat emoji="👨‍👩‍👧" label="Orang Tua" value={stats.parents_count ?? 0} />
+          <MiniStat emoji="👨‍👧" label="Orang Tua Tunggal" value={stats.single_parent_count ?? 0} />
           <MiniStat emoji="🫥" label="Tanpa Relasi" value={stats.isolated_count} />
           <MiniStat emoji="📝" label="Tanpa Tanggal Lahir" value={stats.without_birthdate_count} />
+          <MiniStat emoji="📵" label="Tanpa Telepon" value={stats.without_phone_count ?? 0} />
+          <MiniStat emoji="🌳" label="Generasi Tercatat" value={stats.generation_depth ?? 0} />
         </CardContent>
       </Card>
     </>
