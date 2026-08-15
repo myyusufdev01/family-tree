@@ -40,7 +40,7 @@ export interface SearchResults {
 
 export interface AdminUsers {
   users: { user_id: number; name: string; approved_at: string }[];
-  admin_ids: number[];
+  admin_subs: string[];
 }
 
 export interface AdminStats {

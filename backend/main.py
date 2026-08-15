@@ -3,7 +3,7 @@ import logging
 from collections import deque
 from datetime import date
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -19,6 +19,7 @@ from db.firestore import (
 )
 from models.member import Member
 from utils.tree_renderer import render_family_of
+from auth.auth0 import get_current_user, get_user_sub
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -28,9 +29,17 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Family Tree API", version="1.0.0")
 
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,https://localhost:3000"
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,6 +76,7 @@ class ApproveUserRequest(BaseModel):
 
 @app.get("/api/members")
 def list_members_endpoint(
+    _auth: dict = Depends(get_current_user),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     user_id: int = Query(0),
@@ -90,6 +100,7 @@ def list_members_endpoint(
 
 @app.get("/api/members/search")
 def search_members_endpoint(
+    _auth: dict = Depends(get_current_user),
     q: str = Query(..., min_length=1),
     user_id: int = Query(0),
 ):
@@ -98,7 +109,11 @@ def search_members_endpoint(
 
 
 @app.post("/api/members")
-def create_member(body: MemberCreate, user_id: int = Query(0)):
+def create_member(
+    body: MemberCreate,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     member = Member(
         id="",
         name=body.name,
@@ -113,7 +128,11 @@ def create_member(body: MemberCreate, user_id: int = Query(0)):
 
 
 @app.get("/api/members/{member_id}")
-def get_member_endpoint(member_id: str, user_id: int = Query(0)):
+def get_member_endpoint(
+    member_id: str,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     member = get_member(user_id, member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -122,7 +141,10 @@ def get_member_endpoint(member_id: str, user_id: int = Query(0)):
 
 @app.put("/api/members/{member_id}")
 def update_member_endpoint(
-    member_id: str, body: MemberUpdate, user_id: int = Query(0)
+    member_id: str,
+    body: MemberUpdate,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
 ):
     existing = get_member(user_id, member_id)
     if not existing:
@@ -135,7 +157,11 @@ def update_member_endpoint(
 
 
 @app.delete("/api/members/{member_id}")
-def delete_member_endpoint(member_id: str, user_id: int = Query(0)):
+def delete_member_endpoint(
+    member_id: str,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     existing = get_member(user_id, member_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -146,7 +172,11 @@ def delete_member_endpoint(member_id: str, user_id: int = Query(0)):
 # ── Relation endpoints ───────────────────────────────────────────────────────
 
 @app.post("/api/members/link")
-def link_members(body: LinkRequest, user_id: int = Query(0)):
+def link_members(
+    body: LinkRequest,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     if body.type == "parent_child":
         link_parent_child(user_id, body.member_a_id, body.member_b_id)
         return {"status": "linked", "type": "parent_child"}
@@ -160,7 +190,11 @@ def link_members(body: LinkRequest, user_id: int = Query(0)):
 
 
 @app.post("/api/members/unlink")
-def unlink_members(body: LinkRequest, user_id: int = Query(0)):
+def unlink_members(
+    body: LinkRequest,
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     if body.type == "parent_child":
         unlink_parent_child(user_id, body.member_a_id, body.member_b_id)
         return {"status": "unlinked", "type": "parent_child"}
@@ -182,6 +216,7 @@ MAX_DEPTH_DOWN = 3
 @app.get("/api/members/{member_id}/tree")
 def get_tree(
     member_id: str,
+    _auth: dict = Depends(get_current_user),
     user_id: int = Query(0),
     max_nodes: int = Query(MAX_TREE_NODES, ge=10, le=200),
     depth_up: int = Query(MAX_DEPTH_UP, ge=0, le=5),
@@ -264,7 +299,10 @@ def _age_on(birth: date, ref: date) -> int:
 
 
 @app.get("/api/dashboard/stats")
-def dashboard_stats(user_id: int = Query(0)):
+def dashboard_stats(
+    _auth: dict = Depends(get_current_user),
+    user_id: int = Query(0),
+):
     """Statistik ringkas untuk dashboard, dihitung dari seluruh anggota milik user."""
     members = list_members(user_id)
     today = date.today()
@@ -462,36 +500,50 @@ def dashboard_stats(user_id: int = Query(0)):
 # ── Admin endpoints ──────────────────────────────────────────────────────────
 
 @app.get("/api/admin/users")
-def admin_list_users(user_id: int = Query(0)):
-    from config import ADMIN_IDS
+def admin_list_users(
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    from config import ADMIN_SUBS
+    if user_sub not in ADMIN_SUBS:
+        raise HTTPException(status_code=403, detail="Not authorized")
     users = list_approved_users()
-    return {"users": users, "admin_ids": list(ADMIN_IDS)}
+    return {"users": users, "admin_subs": list(ADMIN_SUBS)}
 
 
 @app.post("/api/admin/users")
-def admin_approve_user(body: ApproveUserRequest, user_id: int = Query(0)):
-    from config import ADMIN_IDS
-    if user_id not in ADMIN_IDS:
+def admin_approve_user(
+    body: ApproveUserRequest,
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    from config import ADMIN_SUBS
+    if user_sub not in ADMIN_SUBS:
         raise HTTPException(status_code=403, detail="Not authorized")
     approve_user(body.user_id, name=body.name, added_by=user_id)
     return {"status": "approved", "user_id": body.user_id}
 
 
 @app.delete("/api/admin/users/{target_id}")
-def admin_revoke_user(target_id: int, user_id: int = Query(0)):
-    from config import ADMIN_IDS
-    if user_id not in ADMIN_IDS:
+def admin_revoke_user(
+    target_id: int,
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    from config import ADMIN_SUBS
+    if user_sub not in ADMIN_SUBS:
         raise HTTPException(status_code=403, detail="Not authorized")
-    if target_id in ADMIN_IDS:
-        raise HTTPException(status_code=400, detail="Cannot revoke admin")
     revoke_user(target_id)
     return {"status": "revoked", "user_id": target_id}
 
 
 @app.get("/api/admin/stats")
-def admin_stats(user_id: int = Query(0)):
-    from config import ADMIN_IDS
-    if user_id not in ADMIN_IDS:
+def admin_stats(
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    from config import ADMIN_SUBS
+    if user_sub not in ADMIN_SUBS:
         raise HTTPException(status_code=403, detail="Not authorized")
     db = get_db()
     trees = list(db.collection("family_trees").stream())

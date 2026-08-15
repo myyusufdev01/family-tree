@@ -9,6 +9,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 | Frontend  | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, shadcn/ui   |
 | Backend   | Python FastAPI, Pydantic, Uvicorn                                         |
 | Database  | Firebase Firestore (Cloud Firestore)                                      |
+| Autentikasi | Auth0 — Universal Login (SPA SDK) + verifikasi JWT RS256 di API         |
 | Deploy    | Google Cloud Run (Docker) — manual (`deploy.sh`) atau CI GitHub Actions   |
 
 ## 📁 Struktur Project
@@ -40,8 +41,9 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - Detail anggota + **pohon keluarga** visual (terfokus maks. 80 anggota, 3 generasi ke atas/bawah)
 - Hubungkan / putuskan relasi orang tua–anak, pasangan, dan **saudara kandung**
 - Format tanggal DD/MM/YYYY
-- API admin (approve user & statistik)
-- Data per-pengguna melalui parameter `user_id`
+- **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
+- API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
+- Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
 
 ## 🚀 Menjalankan di Local
 
@@ -94,6 +96,47 @@ npm run dev
 
 Lalu buka **http://localhost:3000**. Dokumentasi API backend (Swagger UI) tersedia di **http://localhost:8000/docs**, health check di `/health`.
 
+## 🔐 Autentikasi Auth0
+
+Semua halaman & API dilindungi login Auth0. Konfigurasinya di dua sisi:
+
+### 1. Setup di Auth0 Dashboard
+
+1. Buat aplikasi **Single Page Application** (mis. `Family Tree Web`) dan catat **Domain** + **Client ID**-nya.
+2. Buat **API** (mis. `Family Tree API`) dan catat **Identifier**-nya (dipakai sebagai *audience*).
+3. Di pengaturan aplikasi SPA, isi URL berikut (ganti `https://your-app.example.com` sesuai deployment):
+   - **Allowed Callback URLs** : `http://localhost:3000,https://your-app.example.com`
+   - **Allowed Logout URLs** : `http://localhost:3000,https://your-app.example.com`
+   - **Allowed Web Origins**   : `http://localhost:3000,https://your-app.example.com`
+4. Pastikan **JsonWebToken Signature Algorithm = RS256** dan *OIDC Conformant* aktif (Advanced Settings → OAuth).
+
+### 2. Variabel environment
+
+```bash
+# backend/.env
+AUTH0_DOMAIN=your-tenant.auth0.com          # dari Auth0 Dashboard
+AUTH0_AUDIENCE=https://family-tree-api      # identifier API (sama di frontend)
+ADMIN_SUBS=                                 # Auth0 user ID (sub) admin, dipisah koma
+
+# frontend/.env.local
+NEXT_PUBLIC_AUTH0_DOMAIN=your-tenant.auth0.com
+NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
+NEXT_PUBLIC_AUTH0_AUDIENCE=https://family-tree-api
+```
+
+> `AUTH0_AUDIENCE` di backend dan `NEXT_PUBLIC_AUTH0_AUDIENCE` di frontend **harus sama**
+> dengan identifier API yang didaftarkan — ini yang membuat access token berupa JWT RS256
+> yang bisa diverifikasi backend.
+
+### 3. Cara kerja
+
+- Frontend memakai `@auth0/auth0-react` (Universal Login). Setelah login, access token
+  dikirim ke backend sebagai header `Authorization: Bearer <token>` untuk setiap request.
+- Backend memverifikasi token (signature RS256 via JWKS endpoint tenant, `issuer`, dan
+  `audience`) lewat `backend/auth/auth0.py` — semua endpoint `/api/*` kecuali `/health`
+  memerlukan token valid (HTTP 401 bila tidak ada/tidak valid).
+- Akses admin ditentukan dari klaim `sub` token dibandingkan dengan `ADMIN_SUBS`.
+
 ## 🔌 API Backend
 
 | Method | Endpoint                        | Deskripsi                                  |
@@ -113,7 +156,8 @@ Lalu buka **http://localhost:3000**. Dokumentasi API backend (Swagger UI) tersed
 | DELETE | `/api/admin/users/{id}`         | Revoke user (admin)                        |
 | GET    | `/api/admin/stats`              | Statistik aplikasi (admin)                 |
 
-> Semua endpoint menerima query parameter opsional `user_id` untuk membedakan pohon per pengguna.
+> Semua endpoint (kecuali `/health`) memerlukan header `Authorization: Bearer <token>` dari Auth0.
+> Query parameter `user_id` tetap diterima (default `0` = pohon bersama keluarga).
 
 ## ☁️ Deploy ke Google Cloud Run
 
