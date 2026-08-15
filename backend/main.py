@@ -16,6 +16,7 @@ from db.firestore import (
     link_parent_child, link_spouses, link_siblings,
     unlink_parent_child, unlink_spouses, unlink_siblings,
     approve_user, revoke_user, list_approved_users,
+    get_member_by_sub, get_descendant_ids, link_user_to_member,
 )
 from models.member import Member
 from utils.tree_renderer import render_family_of
@@ -72,6 +73,9 @@ class ApproveUserRequest(BaseModel):
     user_id: int
     name: str = ""
 
+class LinkUserRequest(BaseModel):
+    sub: str  # Auth0 User ID (contoh: "google-oauth2|123456")
+
 # ── Member endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/api/members")
@@ -106,6 +110,37 @@ def search_members_endpoint(
 ):
     results = search_members(user_id, q)
     return {"results": [m.to_dict() for m in results]}
+
+
+@app.get("/api/me")
+def get_me(
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    """Identitas user yang sedang login di dalam silsilah keluarga.
+
+    Mengembalikan anggota yang tertaut ke akun Auth0 user (``member``), daftar
+    keturunannya (``descendants``), dan apakah user adalah admin (``is_admin``).
+    Dipakai frontend untuk menentukan anggota mana yang boleh dijadikan user.
+    """
+    from config import ADMIN_SUBS
+    member = get_member_by_sub(user_id, user_sub)
+    if member is None:
+        return {
+            "member": None,
+            "descendant_ids": [],
+            "descendants": [],
+            "is_admin": user_sub in ADMIN_SUBS,
+        }
+    descendant_ids = get_descendant_ids(user_id, member.id)
+    descendants = [m for m in list_members(user_id) if m.id in descendant_ids]
+    descendants.sort(key=lambda m: m.name.lower())
+    return {
+        "member": member.to_dict(),
+        "descendant_ids": sorted(descendant_ids),
+        "descendants": [m.to_dict() for m in descendants],
+        "is_admin": user_sub in ADMIN_SUBS,
+    }
 
 
 @app.post("/api/members")
@@ -167,6 +202,58 @@ def delete_member_endpoint(
         raise HTTPException(status_code=404, detail="Member not found")
     delete_member(user_id, member_id)
     return {"status": "deleted"}
+
+
+@app.post("/api/members/{member_id}/link-user")
+def link_user_endpoint(
+    member_id: str,
+    body: LinkUserRequest,
+    user_sub: str = Depends(get_user_sub),
+    user_id: int = Query(0),
+):
+    """Tautkan akun Auth0 (``sub``) ke seorang anggota silsilah.
+
+    Aturan akses (jawaban: user hanya boleh menambah *user lain* yang merupakan
+    anak/cucu/keturunannya):
+    - Admin (``ADMIN_SUBS``) boleh menautkan siapa saja.
+    - User lain hanya boleh menautkan akun ke anggota yang merupakan keturunan
+      (anak, cucu, cicit, dst.) dari anggota yang diwakili akunnya sendiri.
+      Kalau bukan keturunan → HTTP 403.
+    """
+    from config import ADMIN_SUBS
+
+    sub = body.sub.strip()
+    if not sub:
+        raise HTTPException(status_code=400, detail="sub (Auth0 User ID) wajib diisi")
+
+    target = get_member(user_id, member_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    if user_sub not in ADMIN_SUBS:
+        me = get_member_by_sub(user_id, user_sub)
+        if me is None:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Akun Anda belum tertaut ke anggota silsilah. "
+                    "Minta admin atau keluarga untuk menautkan akun Anda terlebih dahulu."
+                ),
+            )
+        if member_id not in get_descendant_ids(user_id, me.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Hanya boleh menambah user untuk anak/cucu/keturunan sendiri.",
+            )
+        if target.auth0_sub:
+            raise HTTPException(
+                status_code=409,
+                detail="Anggota ini sudah tertaut ke akun lain. Hubungi admin jika ingin mengganti.",
+            )
+
+    link_user_to_member(user_id, member_id, sub)
+    updated = get_member(user_id, member_id)
+    return updated.to_dict() if updated else target.to_dict()
 
 
 # ── Relation endpoints ───────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import type {
   Member, FamilyTree, PaginatedMembers, SearchResults,
-  AdminUsers, AdminStats, DashboardStats,
+  AdminUsers, AdminStats, DashboardStats, Me,
 } from "./types";
 import { getValidAccessToken, refreshAccessToken } from "./auth-token";
 
@@ -107,6 +107,19 @@ export async function getTree(memberId: string, options?: TreeOptions) {
   if (options?.depth_up !== undefined) params.set("depth_up", String(options.depth_up));
   if (options?.depth_down !== undefined) params.set("depth_down", String(options.depth_down));
   return request<FamilyTree>(`/api/members/${memberId}/tree?${params.toString()}`);
+}
+
+// ── User & Akses ──────────────────────────────────────────────────────────────
+
+export async function getMe() {
+  return request<Me>("/api/me?user_id=0");
+}
+
+export async function linkUserToMember(memberId: string, sub: string) {
+  return request<Member>(`/api/members/${memberId}/link-user?user_id=0`, {
+    method: "POST",
+    body: JSON.stringify({ sub }),
+  });
 }
 
 // ── Admin ───────────────────────────────────────────────────────────────────

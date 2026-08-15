@@ -42,6 +42,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - Hubungkan / putuskan relasi orang tua–anak, pasangan, dan **saudara kandung**
 - Format tanggal DD/MM/YYYY
 - **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
+- **Kontrol akses keturunan** — user yang sudah tertaut ke anggota silsilah hanya bisa menautkan akun user lain yang merupakan **anak/cucu/keturunannya** (admin boleh menautkan siapa saja)
 - API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
 - Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
 
@@ -134,6 +135,22 @@ NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
   Cara melihat `sub`: Auth0 Dashboard → **User Management → Users** → klik user → salin
   field **"User ID"** (contoh: `google-oauth2|12345`).
 
+### 4. User ↔ Anggota (hanya keturunan yang bisa dijadikan user)
+
+Agar user yang login hanya bisa menambah user lain yang merupakan anak/cucu/keturunannya:
+
+1. Setiap akun Auth0 yang boleh masuk ditautkan ke **satu anggota silsilah** lewat field
+   `auth0_sub` pada dokumen Member (1 akun = 1 anggota).
+2. Menautkan akun dilakukan di halaman detail anggota (`🔐 Akses Login`) dengan memasukkan
+   **Auth0 User ID (`sub`)** dari orang yang akan diberi akses.
+3. Aturan backend:
+   - User yang sudah tertaut **hanya boleh** menautkan akun ke anggota yang merupakan
+     keturunan (anak, cucu, cicit, dst.) dari anggota yang diwakilinya → selain itu **403**.
+   - Admin (`ADMIN_SUBS`) boleh menautkan siapa saja.
+   - Anggota yang sudah punya akun tidak bisa ditautkan ulang oleh non-admin (**409**).
+4. Cara melihat `sub`: Auth0 Dashboard → **User Management → Users** → klik user → salin
+   field **"User ID"**.
+
 ## 🔌 API Backend
 
 | Method | Endpoint                        | Deskripsi                                  |
@@ -148,6 +165,8 @@ NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
 | POST   | `/api/members/link`             | Hubungkan relasi (`parent_child` / `spouse` / `sibling`) |
 | POST   | `/api/members/unlink`           | Putuskan relasi                                        |
 | GET    | `/api/members/{id}/tree`        | Pohon keluarga terfokus (`max_nodes`, `depth_up`, `depth_down`) |
+| GET    | `/api/me`                       | Identitas user login di silsilah (member + daftar keturunannya) |
+| POST   | `/api/members/{id}/link-user`   | Tautkan akun Auth0 ke anggota — hanya anak/cucu/keturunan sendiri (kecuali admin) |
 | GET    | `/api/admin/users`              | Daftar user ter-approve (admin)            |
 | POST   | `/api/admin/users`              | Approve user (admin)                       |
 | DELETE | `/api/admin/users/{id}`         | Revoke user (admin)                        |

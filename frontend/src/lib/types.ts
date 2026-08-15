@@ -12,6 +12,8 @@ export interface Member {
   child_ids: string[];
   sibling_ids: string[];
   created_at: string | null;
+  /** Akun Auth0 (sub/User ID) yang tertaut ke anggota ini — 1 akun = 1 anggota. */
+  auth0_sub?: string | null;
 }
 
 export interface FamilyTree {
@@ -36,6 +38,13 @@ export interface PaginatedMembers {
 
 export interface SearchResults {
   results: Member[];
+}
+
+export interface Me {
+  member: Member | null;
+  descendant_ids: string[];
+  descendants: Member[];
+  is_admin: boolean;
 }
 
 export interface AdminUsers {

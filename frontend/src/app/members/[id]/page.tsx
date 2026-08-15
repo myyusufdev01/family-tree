@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTree, deleteMember } from "@/lib/api";
+import LinkUserForm from "@/components/members/link-user-form";
 import { toDisplayDate } from "@/lib/date-format";
 import type { Member, FamilyTree } from "@/lib/types";
 
@@ -62,6 +63,7 @@ export default function MemberDetailPage() {
   const router = useRouter();
   const [tree, setTree] = useState<FamilyTree | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const memberId = params.id as string;
 
   useEffect(() => {
@@ -82,7 +84,11 @@ export default function MemberDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [memberId]);
+  }, [memberId, reloadKey]);
+
+  function reloadTree() {
+    setReloadKey((k) => k + 1);
+  }
 
   async function handleDelete() {
     if (!tree?.member) return;
@@ -193,6 +199,15 @@ export default function MemberDetailPage() {
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>🔐 Akses Login</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LinkUserForm member={member} onLinked={reloadTree} />
         </CardContent>
       </Card>
 

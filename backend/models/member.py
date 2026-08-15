@@ -17,6 +17,8 @@ class Member:
     child_ids: list = field(default_factory=list)
     sibling_ids: list = field(default_factory=list)
     created_at: Optional[str] = None
+    # Akun Auth0 (sub/User ID) yang tertaut ke anggota ini — 1 akun = 1 anggota.
+    auth0_sub: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -33,6 +35,7 @@ class Member:
             "child_ids": self.child_ids,
             "sibling_ids": self.sibling_ids,
             "created_at": self.created_at or datetime.utcnow().isoformat(),
+            "auth0_sub": self.auth0_sub,
         }
 
     @staticmethod
@@ -50,6 +53,7 @@ class Member:
             child_ids=data.get("child_ids", []),
             sibling_ids=data.get("sibling_ids", []),
             created_at=data.get("created_at"),
+            auth0_sub=data.get("auth0_sub"),
         )
 
     def summary(self) -> str:
