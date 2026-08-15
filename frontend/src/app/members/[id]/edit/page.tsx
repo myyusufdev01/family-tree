@@ -44,7 +44,7 @@ export default function EditMemberPage() {
   const [relSearch, setRelSearch] = useState("");
   const [relResults, setRelResults] = useState<Member[]>([]);
   const [relType, setRelType] = useState<"parent_child" | "spouse">("parent_child");
-  const [relRole, setRelRole] = useState<"parent" | "child" | "spouse">("parent");
+  const [relRole, setRelRole] = useState<"parent" | "child" | "spouse" | "sibling">("parent");
   const memberId = params.id as string;
 
   useEffect(() => {
@@ -113,6 +113,9 @@ async function handleSave(e: React.FormEvent) {
       } else if (relRole === "child") {
         await linkMembers("parent_child", memberId, targetId);
         alert(`✅ ${member?.name} jadi orang tua dari ${targetName}`);
+      } else if (relRole === "sibling") {
+        await linkMembers("sibling", memberId, targetId);
+        alert(`✅ ${member?.name} & ${targetName} jadi saudara kandung`);
       } else {
         await linkMembers("spouse", memberId, targetId);
         alert(`✅ ${member?.name} & ${targetName} jadi pasangan`);
@@ -126,10 +129,12 @@ async function handleSave(e: React.FormEvent) {
     }
   }
 
-  async function handleRemoveRelation(type: "parent_child" | "spouse", targetId: string) {
+  async function handleRemoveRelation(type: "parent_child" | "spouse" | "sibling", targetId: string) {
     try {
       if (type === "parent_child") {
         await unlinkMembers("parent_child", memberId, targetId);
+      } else if (type === "sibling") {
+        await unlinkMembers("sibling", memberId, targetId);
       } else {
         await unlinkMembers("spouse", memberId, targetId);
       }
@@ -203,13 +208,16 @@ return (
           {member.parent_ids.length > 0 && (
             <RelationList title="Orang Tua" ids={member.parent_ids} onRemove={(id) => handleRemoveRelation("parent_child", id)} />
           )}
+          {member.sibling_ids.length > 0 && (
+            <RelationList title="Saudara Kandung" ids={member.sibling_ids} onRemove={(id) => handleRemoveRelation("sibling", id)} />
+          )}
           {member.spouse_ids.length > 0 && (
             <RelationList title="Pasangan" ids={member.spouse_ids} onRemove={(id) => handleRemoveRelation("spouse", id)} />
           )}
           {member.child_ids.length > 0 && (
             <RelationList title="Anak" ids={member.child_ids} onRemove={(id) => handleRemoveRelation("parent_child", id)} />
           )}
-          {member.parent_ids.length === 0 && member.spouse_ids.length === 0 && member.child_ids.length === 0 && (
+          {member.parent_ids.length === 0 && member.sibling_ids.length === 0 && member.spouse_ids.length === 0 && member.child_ids.length === 0 && (
             <p className="text-sm text-muted-foreground">Belum ada relasi.</p>
           )}
         </CardContent>
@@ -230,6 +238,7 @@ return (
                 <SelectItem value="parent">Orang tua dari...</SelectItem>
                 <SelectItem value="child">Anak dari...</SelectItem>
                 <SelectItem value="spouse">Pasangan dari...</SelectItem>
+                <SelectItem value="sibling">Saudara kandung dari...</SelectItem>
               </SelectContent>
             </Select>
             <Input placeholder="Cari..." value={relSearch} onChange={(e) => setRelSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRelSearch()} />

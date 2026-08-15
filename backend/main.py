@@ -11,7 +11,8 @@ load_dotenv()
 from db.firestore import (
     add_member, get_member, update_member, delete_member,
     list_members_paginated, search_members, get_db,
-    link_parent_child, link_spouses, unlink_parent_child, unlink_spouses,
+    link_parent_child, link_spouses, link_siblings,
+    unlink_parent_child, unlink_spouses, unlink_siblings,
     approve_user, revoke_user, list_approved_users,
 )
 from models.member import Member
@@ -145,6 +146,9 @@ def link_members(body: LinkRequest, user_id: int = Query(0)):
     elif body.type == "spouse":
         link_spouses(user_id, body.member_a_id, body.member_b_id)
         return {"status": "linked", "type": "spouse"}
+    elif body.type == "sibling":
+        link_siblings(user_id, body.member_a_id, body.member_b_id)
+        return {"status": "linked", "type": "sibling"}
     raise HTTPException(status_code=400, detail="Invalid link type")
 
 
@@ -156,6 +160,9 @@ def unlink_members(body: LinkRequest, user_id: int = Query(0)):
     elif body.type == "spouse":
         unlink_spouses(user_id, body.member_a_id, body.member_b_id)
         return {"status": "unlinked", "type": "spouse"}
+    elif body.type == "sibling":
+        unlink_siblings(user_id, body.member_a_id, body.member_b_id)
+        return {"status": "unlinked", "type": "sibling"}
     raise HTTPException(status_code=400, detail="Invalid link type")
 # ── Tree endpoint ────────────────────────────────────────────────────────────
 
@@ -164,7 +171,7 @@ def get_tree(member_id: str, user_id: int = Query(0)):
     member = get_member(user_id, member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    rel_ids = set(member.parent_ids + member.spouse_ids + member.child_ids)
+    rel_ids = set(member.parent_ids + member.spouse_ids + member.child_ids + member.sibling_ids)
     for pid in member.parent_ids:
         p = get_member(user_id, pid)
         if p:

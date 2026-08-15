@@ -15,6 +15,7 @@ class Member:
     parent_ids: list = field(default_factory=list)
     spouse_ids: list = field(default_factory=list)
     child_ids: list = field(default_factory=list)
+    sibling_ids: list = field(default_factory=list)
     created_at: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -30,6 +31,7 @@ class Member:
             "parent_ids": self.parent_ids,
             "spouse_ids": self.spouse_ids,
             "child_ids": self.child_ids,
+            "sibling_ids": self.sibling_ids,
             "created_at": self.created_at or datetime.utcnow().isoformat(),
         }
 
@@ -46,6 +48,7 @@ class Member:
             parent_ids=data.get("parent_ids", []),
             spouse_ids=data.get("spouse_ids", []),
             child_ids=data.get("child_ids", []),
+            sibling_ids=data.get("sibling_ids", []),
             created_at=data.get("created_at"),
         )
 

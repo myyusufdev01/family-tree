@@ -109,7 +109,10 @@ export default function MemberDetailPage() {
   );
   const parents = member.parent_ids.map((id) => family[id]).filter(Boolean);
   const siblings = all.filter(
-    (m) => m.id !== member.id && member.parent_ids.some((pid) => m.parent_ids.includes(pid))
+    (m) =>
+      m.id !== member.id &&
+      (member.sibling_ids.includes(m.id) ||
+        member.parent_ids.some((pid) => m.parent_ids.includes(pid)))
   );
   const spouses = member.spouse_ids.map((id) => family[id]).filter(Boolean);
   const children = member.child_ids.map((id) => family[id]).filter(Boolean);

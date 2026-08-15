@@ -179,3 +179,27 @@ def unlink_spouses(user_id: int, member_a_id: str, member_b_id: str):
     if b and member_a_id in b.spouse_ids:
         b.spouse_ids.remove(member_a_id)
         update_member(user_id, member_b_id, {"spouse_ids": b.spouse_ids})
+
+
+def link_siblings(user_id: int, member_a_id: str, member_b_id: str):
+    a = get_member(user_id, member_a_id)
+    b = get_member(user_id, member_b_id)
+    if not a or not b:
+        return
+    if member_b_id not in a.sibling_ids:
+        a.sibling_ids.append(member_b_id)
+        update_member(user_id, member_a_id, {"sibling_ids": a.sibling_ids})
+    if member_a_id not in b.sibling_ids:
+        b.sibling_ids.append(member_a_id)
+        update_member(user_id, member_b_id, {"sibling_ids": b.sibling_ids})
+
+
+def unlink_siblings(user_id: int, member_a_id: str, member_b_id: str):
+    a = get_member(user_id, member_a_id)
+    b = get_member(user_id, member_b_id)
+    if a and member_b_id in a.sibling_ids:
+        a.sibling_ids.remove(member_b_id)
+        update_member(user_id, member_a_id, {"sibling_ids": a.sibling_ids})
+    if b and member_a_id in b.sibling_ids:
+        b.sibling_ids.remove(member_a_id)
+        update_member(user_id, member_b_id, {"sibling_ids": b.sibling_ids})

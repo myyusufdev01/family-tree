@@ -10,6 +10,7 @@ export interface Member {
   parent_ids: string[];
   spouse_ids: string[];
   child_ids: string[];
+  sibling_ids: string[];
   created_at: string | null;
 }
 

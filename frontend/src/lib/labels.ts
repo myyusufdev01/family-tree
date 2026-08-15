@@ -13,8 +13,9 @@ export const GENDER_ICONS: Record<Member["gender"], string> = {
 };
 
 /** Label peran saat menambah relasi keluarga. */
-export const REL_ROLE_LABELS: Record<"parent" | "child" | "spouse", string> = {
+export const REL_ROLE_LABELS: Record<"parent" | "child" | "spouse" | "sibling", string> = {
   parent: "Orang tua dari...",
   child: "Anak dari...",
   spouse: "Pasangan dari...",
+  sibling: "Saudara kandung dari...",
 };

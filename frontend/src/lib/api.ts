@@ -53,14 +53,16 @@ export async function deleteMember(id: string) {
 
 // ── Relations ───────────────────────────────────────────────────────────────
 
-export async function linkMembers(type: "parent_child" | "spouse", memberA: string, memberB: string) {
+export type RelationType = "parent_child" | "spouse" | "sibling";
+
+export async function linkMembers(type: RelationType, memberA: string, memberB: string) {
   return request<{ status: string; type: string }>("/api/members/link?user_id=0", {
     method: "POST",
     body: JSON.stringify({ type, member_a_id: memberA, member_b_id: memberB }),
   });
 }
 
-export async function unlinkMembers(type: "parent_child" | "spouse", memberA: string, memberB: string) {
+export async function unlinkMembers(type: RelationType, memberA: string, memberB: string) {
   return request<{ status: string; type: string }>("/api/members/unlink?user_id=0", {
     method: "POST",
     body: JSON.stringify({ type, member_a_id: memberA, member_b_id: memberB }),

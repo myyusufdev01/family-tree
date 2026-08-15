@@ -31,8 +31,8 @@ def render_family_of(member: Member, by_id: dict[str, Member]) -> str:
             lines.append(f"  • {fmt(p)}")
         lines.append("")
 
-    # Siblings (share at least one parent)
-    sibling_ids = set()
+    # Siblings (explicit links + share at least one parent)
+    sibling_ids = set(member.sibling_ids)
     for pid in member.parent_ids:
         p = by_id.get(pid)
         if p:
