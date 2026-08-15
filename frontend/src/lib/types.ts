@@ -42,8 +42,6 @@ export interface SearchResults {
 
 export interface Me {
   member: Member | null;
-  descendant_ids: string[];
-  descendants: Member[];
   is_admin: boolean;
 }
 

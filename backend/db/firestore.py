@@ -137,32 +137,6 @@ def get_member_by_sub(user_id: int, sub: str) -> Member | None:
     return Member.from_dict(docs[0].to_dict()) if docs else None
 
 
-def collect_descendant_ids(by_id: dict[str, Member], root_id: str) -> set[str]:
-    """ID seluruh keturunan (anak, cucu, cicit, dst.) dari ``root_id``.
-
-    Murni beroperasi pada ``by_id`` (map id → Member) sehingga mudah diuji
-    tanpa koneksi Firestore. Traversal mengikuti relasi ``child_ids``.
-    """
-    if root_id not in by_id:
-        return set()
-    descendants: set[str] = set()
-    stack = [root_id]
-    while stack:
-        current_id = stack.pop()
-        for cid in by_id[current_id].child_ids:
-            if cid in descendants or cid == root_id:
-                continue
-            descendants.add(cid)
-            stack.append(cid)
-    return descendants
-
-
-def get_descendant_ids(user_id: int, member_id: str) -> set[str]:
-    """Seluruh keturunan (anak, cucu, cicit, dst.) milik seorang anggota."""
-    members = list_members(user_id)
-    return collect_descendant_ids({m.id: m for m in members}, member_id)
-
-
 def link_user_to_member(user_id: int, member_id: str, sub: str) -> None:
     """Tautkan akun Auth0 (``sub``) ke seorang anggota silsilah."""
     update_member(user_id, member_id, {"auth0_sub": sub})
