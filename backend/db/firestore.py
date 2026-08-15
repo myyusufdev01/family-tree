@@ -46,7 +46,17 @@ def update_member(user_id: int, member_id: str, fields: dict):
 
 
 def delete_member(user_id: int, member_id: str):
+    """Hapus anggota dan bersihkan semua referensinya dari anggota lain."""
     _members_ref(user_id).document(member_id).delete()
+    # Putuskan relasi: keluarkan member_id dari daftar relasi anggota lain.
+    for m in list_members(user_id):
+        updates: dict[str, list[str]] = {}
+        for attr in ("parent_ids", "sibling_ids", "spouse_ids", "child_ids"):
+            ids = getattr(m, attr)
+            if member_id in ids:
+                updates[attr] = [i for i in ids if i != member_id]
+        if updates:
+            update_member(user_id, m.id, updates)
 
 
 def list_members(user_id: int) -> list[Member]:

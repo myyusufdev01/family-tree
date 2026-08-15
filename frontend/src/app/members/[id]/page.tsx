@@ -13,7 +13,7 @@ import {
   TableCell,
   TableRow,
 } from "@/components/ui/table";
-import { getTree } from "@/lib/api";
+import { getTree, deleteMember } from "@/lib/api";
 import { toDisplayDate } from "@/lib/date-format";
 import type { Member, FamilyTree } from "@/lib/types";
 
@@ -65,18 +65,36 @@ export default function MemberDetailPage() {
   const memberId = params.id as string;
 
   useEffect(() => {
-    loadData();
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getTree(memberId);
+        if (cancelled) return;
+        setTree(data);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error(err instanceof Error ? err.message : "Gagal memuat");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [memberId]);
 
-  async function loadData() {
-    setLoading(true);
+  async function handleDelete() {
+    if (!tree?.member) return;
+    const ok = window.confirm(
+      `Yakin ingin menghapus anggota "${tree.member.name}"?\n\nSemua relasi keluarga yang terhubung juga akan diputuskan. Tindakan ini tidak bisa dibatalkan.`
+    );
+    if (!ok) return;
     try {
-      const data = await getTree(memberId);
-      setTree(data);
+      await deleteMember(memberId);
+      router.push("/");
     } catch (err: unknown) {
-      console.error(err instanceof Error ? err.message : "Gagal memuat");
-    } finally {
-      setLoading(false);
+      alert(err instanceof Error ? err.message : "Gagal menghapus anggota");
     }
   }
 
@@ -132,6 +150,9 @@ export default function MemberDetailPage() {
               <Link href={`/members/${member.id}/edit`}>
                 <Button variant="outline" size="sm">✏️ Edit</Button>
               </Link>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
+                🗑 Hapus
+              </Button>
             </div>
           </div>
         </CardHeader>
