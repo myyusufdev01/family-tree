@@ -9,7 +9,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 | Frontend  | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, shadcn/ui   |
 | Backend   | Python FastAPI, Pydantic, Uvicorn                                         |
 | Database  | Firebase Firestore (Cloud Firestore)                                      |
-| Autentikasi | Auth0 — Universal Login (SPA SDK) + verifikasi JWT RS256 di API         |
+| Autentikasi | Auth0 — Universal Login (SPA SDK) + verifikasi token via `/userinfo`   |
 | Deploy    | Google Cloud Run (Docker) — manual (`deploy.sh`) atau CI GitHub Actions   |
 
 ## 📁 Struktur Project
@@ -98,44 +98,41 @@ Lalu buka **http://localhost:3000**. Dokumentasi API backend (Swagger UI) tersed
 
 ## 🔐 Autentikasi Auth0
 
-Semua halaman & API dilindungi login Auth0. Konfigurasinya di dua sisi:
+Semua halaman & API dilindungi login Auth0. Pendekatan: **SPA tanpa audience** —
+tidak perlu membuat API di Auth0. Access token (opaque) diverifikasi backend
+dengan memanggil endpoint `/userinfo` Auth0.
 
 ### 1. Setup di Auth0 Dashboard
 
 1. Buat aplikasi **Single Page Application** (mis. `Family Tree Web`) dan catat **Domain** + **Client ID**-nya.
-2. Buat **API** (mis. `Family Tree API`) dan catat **Identifier**-nya (dipakai sebagai *audience*).
-3. Di pengaturan aplikasi SPA, isi URL berikut (ganti `https://your-app.example.com` sesuai deployment):
+2. Di pengaturan aplikasi SPA, isi URL berikut (ganti `https://your-app.example.com` sesuai deployment):
    - **Allowed Callback URLs** : `http://localhost:3000,https://your-app.example.com`
    - **Allowed Logout URLs** : `http://localhost:3000,https://your-app.example.com`
    - **Allowed Web Origins**   : `http://localhost:3000,https://your-app.example.com`
-4. Pastikan **JsonWebToken Signature Algorithm = RS256** dan *OIDC Conformant* aktif (Advanced Settings → OAuth).
+3. **Tidak perlu membuat API** di Auth0 — karena token diverifikasi via `/userinfo`, audience/API tidak dipakai.
 
 ### 2. Variabel environment
 
 ```bash
 # backend/.env
 AUTH0_DOMAIN=your-tenant.auth0.com          # dari Auth0 Dashboard
-AUTH0_AUDIENCE=https://family-tree-api      # identifier API (sama di frontend)
 ADMIN_SUBS=                                 # Auth0 user ID (sub) admin, dipisah koma
 
 # frontend/.env.local
 NEXT_PUBLIC_AUTH0_DOMAIN=your-tenant.auth0.com
 NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
-NEXT_PUBLIC_AUTH0_AUDIENCE=https://family-tree-api
 ```
-
-> `AUTH0_AUDIENCE` di backend dan `NEXT_PUBLIC_AUTH0_AUDIENCE` di frontend **harus sama**
-> dengan identifier API yang didaftarkan — ini yang membuat access token berupa JWT RS256
-> yang bisa diverifikasi backend.
 
 ### 3. Cara kerja
 
 - Frontend memakai `@auth0/auth0-react` (Universal Login). Setelah login, access token
   dikirim ke backend sebagai header `Authorization: Bearer <token>` untuk setiap request.
-- Backend memverifikasi token (signature RS256 via JWKS endpoint tenant, `issuer`, dan
-  `audience`) lewat `backend/auth/auth0.py` — semua endpoint `/api/*` kecuali `/health`
-  memerlukan token valid (HTTP 401 bila tidak ada/tidak valid).
-- Akses admin ditentukan dari klaim `sub` token dibandingkan dengan `ADMIN_SUBS`.
+- Backend memverifikasi token dengan memanggil `GET https://{domain}/userinfo`
+  (hasil di-cache 5 menit per token) lewat `backend/auth/auth0.py` — semua endpoint
+  `/api/*` kecuali `/health` memerlukan token valid (HTTP 401 bila tidak ada/tidak valid).
+- Akses admin ditentukan dari nilai `sub` (User ID Auth0) dibandingkan dengan `ADMIN_SUBS`.
+  Cara melihat `sub`: Auth0 Dashboard → **User Management → Users** → klik user → salin
+  field **"User ID"** (contoh: `google-oauth2|12345`).
 
 ## 🔌 API Backend
 

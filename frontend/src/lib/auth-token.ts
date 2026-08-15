@@ -39,10 +39,17 @@ function isJwtExpired(token: string): boolean {
 /** Token valid (belum kedaluwarsa), atau minta token baru lewat refresh handler. */
 export async function getValidAccessToken(): Promise<string | null> {
   if (accessToken && !isJwtExpired(accessToken)) return accessToken;
-  if (refreshFn) {
-    const fresh = await refreshFn();
-    if (fresh) accessToken = fresh;
-    return fresh;
-  }
-  return accessToken;
+  return refreshAccessToken();
+}
+
+/**
+ * Paksa perbarui token (dipakai api.ts saat backend menolak token dengan 401).
+ * Tanpa audience, token Auth0 berbentuk opaque (bukan JWT) sehingga tidak
+ * memiliki klaim `exp` yang bisa dibaca — refresh dilakukan lewat handler SDK.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshFn) return accessToken;
+  const fresh = await refreshFn();
+  if (fresh) accessToken = fresh;
+  return fresh;
 }

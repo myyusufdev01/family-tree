@@ -2,11 +2,19 @@ import type {
   Member, FamilyTree, PaginatedMembers, SearchResults,
   AdminUsers, AdminStats, DashboardStats,
 } from "./types";
-import { getValidAccessToken } from "./auth-token";
+import { getValidAccessToken, refreshAccessToken } from "./auth-token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  return requestWithRetry<T>(path, options, false);
+}
+
+async function requestWithRetry<T>(
+  path: string,
+  options: RequestInit | undefined,
+  retried: boolean,
+): Promise<T> {
   const token = await getValidAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -19,6 +27,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers,
     ...options,
   });
+  if (res.status === 401 && !retried) {
+    // Token ditolak backend (mis. kedaluwarsa) — coba refresh sekali lalu ulangi.
+    const fresh = await refreshAccessToken();
+    if (fresh) {
+      return requestWithRetry<T>(path, options, true);
+    }
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || `HTTP ${res.status}`);

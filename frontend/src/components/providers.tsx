@@ -15,7 +15,6 @@ import { setAccessToken, setTokenRefreshFn } from "@/lib/auth-token";
 
 const AUTH0_DOMAIN = process.env.NEXT_PUBLIC_AUTH0_DOMAIN ?? "";
 const AUTH0_CLIENT_ID = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID ?? "";
-const AUTH0_AUDIENCE = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE ?? "";
 
 export const auth0Configured = Boolean(AUTH0_DOMAIN && AUTH0_CLIENT_ID);
 
@@ -132,7 +131,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
       authorizationParams={{
         redirect_uri:
           typeof window !== "undefined" ? window.location.origin : undefined,
-        ...(AUTH0_AUDIENCE ? { audience: AUTH0_AUDIENCE } : {}),
         scope: "openid profile email",
       }}
       cacheLocation="localstorage"

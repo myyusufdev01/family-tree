@@ -6,10 +6,12 @@ load_dotenv()
 FIRESTORE_PROJECT_ID = os.getenv("FIRESTORE_PROJECT_ID")
 
 # ── Auth0 ────────────────────────────────────────────────────────────────────
-# Tenant Auth0 (contoh: family-tree.us.auth0.com) dan identifier API (audience)
-# yang didaftarkan di Auth0. Audience dipakai juga oleh frontend
-# (NEXT_PUBLIC_AUTH0_AUDIENCE) supaya access token berupa JWT RS256.
+# Tenant Auth0 (contoh: family-tree.us.auth0.com). Backend memverifikasi token
+# via endpoint /userinfo Auth0, jadi tidak perlu audience/API terpisah.
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+
+# Opsional/legacy — dipakai bila suatu saat ingin verifikasi JWT via JWKS
+# (mengharuskan pembuatan API di Auth0 dan audience yang sama di frontend).
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE") or None
 AUTH0_ISSUER = f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else None
 
