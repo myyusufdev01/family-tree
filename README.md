@@ -43,7 +43,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - Format tanggal DD/MM/YYYY
 - **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
 - **Menautkan akun user khusus admin** — hanya admin (`ADMIN_SUBS`) yang bisa menautkan akun Auth0 ke anggota silsilah lewat UI; admin bebas menautkan siapa saja (termasuk dirinya sendiri untuk setup awal)
-- **Menambah anggota butuh akun tertaut** — hanya user yang akun Auth0-nya sudah tertaut ke anggota silsilah yang bisa menambah anggota (admin boleh bypass untuk setup awal)
+- **Menambah anggota = anak Anda** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis menjadi **anak langsung** user penambah (admin boleh bypass untuk setup awal)
 - API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
 - Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
 
@@ -152,7 +152,9 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
    field **"User ID"**.
 5. **Menambah anggota**: hanya user yang akunnya sudah tertaut yang boleh menambah anggota
    (`POST /api/members`). User belum tertaut mendapat **403**; admin boleh bypass agar bisa
-   setup awal. Tombol "Tambah Anggota" di UI juga hanya tampil untuk user yang berhak.
+   setup awal. Anggota baru **otomatis menjadi anak langsung** dari user penambah — sehingga
+   setiap user hanya memperluas silsilah ke keturunannya sendiri. Tombol "Tambah Anggota" di
+   UI hanya tampil untuk user yang berhak.
 
 ## 🔌 API Backend
 

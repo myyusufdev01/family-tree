@@ -139,9 +139,13 @@ def create_member(
 ):
     """Tambah anggota baru.
 
-    Aturan akses: hanya user yang akun Auth0-nya sudah tertaut ke anggota
-    silsilah (``auth0_sub``) yang boleh menambah anggota. Admin (``ADMIN_SUBS``)
-    boleh bypass agar bisa setup awal (mis. menambah anggota sebelum tertaut).
+    Aturan akses:
+    - Hanya user yang akun Auth0-nya sudah tertaut ke anggota silsilah
+      (``auth0_sub``) yang boleh menambah anggota; admin (``ADMIN_SUBS``) boleh
+      bypass agar bisa setup awal.
+    - Anggota baru otomatis menjadi **anak langsung** dari anggota yang
+      mewakili user penambah (sehingga selalu keturunan user). Admin yang
+      belum tertaut (setup awal) menambah tanpa orang tua.
     """
     from config import ADMIN_SUBS
 
@@ -164,6 +168,13 @@ def create_member(
         notes=body.notes,
     )
     created = add_member(user_id, member)
+
+    # Otomatis jadi anak dari user yang menambahkan (bila user sudah tertaut).
+    me = get_member_by_sub(user_id, user_sub)
+    if me is not None:
+        link_parent_child(user_id, me.id, created.id)
+        created = get_member(user_id, created.id) or created
+
     return created.to_dict()
 
 

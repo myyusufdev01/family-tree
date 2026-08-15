@@ -56,6 +56,9 @@ export default function AddMemberPage() {
       <Card>
         <CardHeader>
           <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Anggota baru akan otomatis tercatat sebagai <b>anak dari akun Anda</b> di silsilah.
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
