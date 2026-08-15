@@ -95,7 +95,7 @@ def test_admin_bypass_menambah_tanpa_relasi_saat_belum_tertaut(client, set_sub, 
     assert calls == []
 
 
-def test_admin_yang_tertaut_anggota_barunya_tetap_jadi_anaknya(client, set_sub, monkeypatch):
+def test_admin_menambah_tanpa_relasi_otomatis_meski_sudah_tertaut(client, set_sub, monkeypatch):
     set_sub(TEST_SUB)
     monkeypatch.setattr(config, "ADMIN_SUBS", {TEST_SUB})
     me = _member("kakek")
@@ -103,7 +103,9 @@ def test_admin_yang_tertaut_anggota_barunya_tetap_jadi_anaknya(client, set_sub, 
 
     resp = client.post("/api/members?user_id=0", json={"name": "Cucu"})
     assert resp.status_code == 200, resp.text
-    assert calls == [("parent_child", "kakek", "member-3")]
+    assert resp.json()["id"] == "member-3"
+    # Admin tidak perlu memilih anak/pasangan → tanpa auto-link.
+    assert calls == []
 
 
 def test_relation_tidak_valid_ditolak_422(client, set_sub, monkeypatch):

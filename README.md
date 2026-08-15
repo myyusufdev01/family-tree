@@ -43,7 +43,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - Format tanggal DD/MM/YYYY
 - **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
 - **Menautkan akun user khusus admin** — hanya admin (`ADMIN_SUBS`) yang bisa menautkan akun Auth0 ke anggota silsilah lewat UI; admin bebas menautkan siapa saja (termasuk dirinya sendiri untuk setup awal)
-- **Menambah anggota = anak/pasangan Anda** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis terhubung sebagai **anak** (default) atau **pasangan** user penambah (admin boleh bypass untuk setup awal)
+- **Menambah anggota = anak/pasangan Anda (kecuali admin)** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis terhubung sebagai **anak** (default) atau **pasangan** bagi non-admin. Admin menambah **tanpa relasi otomatis**
 - API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
 - Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
 
@@ -151,10 +151,11 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
 4. Cara melihat `sub`: Auth0 Dashboard → **User Management → Users** → klik user → salin
    field **"User ID"**.
 5. **Menambah anggota**: hanya user yang akunnya sudah tertaut yang boleh menambah anggota
-   (`POST /api/members`). User belum tertaut mendapat **403**; admin boleh bypass agar bisa
-   setup awal. Anggota baru otomatis terhubung ke user penambah sebagai **anak** (default)
-   atau **pasangan** (field `relation`) — setiap user memperluas silsilah ke keluarga
-   terdekatnya sendiri. Tombol "Tambah Anggota" di UI hanya tampil untuk user yang berhak.
+   (`POST /api/members`). User belum tertaut mendapat **403**. Anggota baru otomatis
+   terhubung ke user penambah (non-admin) sebagai **anak** (default) atau **pasangan**
+   (field `relation`). **Admin tidak perlu memilih** — anggota yang ditambah admin dibuat
+   tanpa relasi otomatis (bisa dihubungkan manual lewat halaman edit). Tombol "Tambah
+   Anggota" di UI hanya tampil untuk user yang berhak.
 
 ## 🔌 API Backend
 

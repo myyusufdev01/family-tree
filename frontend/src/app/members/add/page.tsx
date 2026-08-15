@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateInput } from "@/components/ui/date-input";
-import { createMember } from "@/lib/api";
+import { createMember, getMe } from "@/lib/api";
 import { GENDER_LABELS } from "@/lib/labels";
-import type { NewMemberRelation } from "@/lib/types";
+import type { Me, NewMemberRelation } from "@/lib/types";
 
 const RELATION_LABELS: Record<NewMemberRelation, string> = {
   child: "👶 Anak",
@@ -27,6 +27,7 @@ const RELATION_LABELS: Record<NewMemberRelation, string> = {
 export default function AddMemberPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
   const [form, setForm] = useState({
     name: "",
     gender: "male" as "male" | "female",
@@ -37,6 +38,23 @@ export default function AddMemberPage() {
     notes: "",
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getMe();
+        if (!cancelled) setMe(data);
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isAdmin = me?.is_admin ?? false;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
@@ -45,7 +63,7 @@ export default function AddMemberPage() {
       const member = await createMember({
         name: form.name.trim(),
         gender: form.gender,
-        relation: form.relation,
+        ...(!isAdmin ? { relation: form.relation } : {}),
         birth_date: form.birth_date || null,
         death_date: form.death_date || null,
         phone: form.phone || null,
@@ -65,8 +83,17 @@ export default function AddMemberPage() {
         <CardHeader>
           <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
-            <b>pasangan</b> dari akun Anda di silsilah.
+            {isAdmin ? (
+              <>
+                Anda (admin) menambah anggota <b>tanpa relasi otomatis</b>.
+                Hubungkan relasinya lewat halaman edit bila perlu.
+              </>
+            ) : (
+              <>
+                Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
+                <b>pasangan</b> dari akun Anda di silsilah.
+              </>
+            )}
           </p>
         </CardHeader>
         <CardContent>
@@ -100,25 +127,27 @@ export default function AddMemberPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Hubungan dengan Anda</Label>
-              <Select
-                value={form.relation}
-                onValueChange={(v) =>
-                  setForm({ ...form, relation: v as NewMemberRelation })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {(v) => RELATION_LABELS[(v ?? "child") as NewMemberRelation]}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="child">👶 Anak</SelectItem>
-                  <SelectItem value="spouse">💑 Pasangan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {me !== null && !isAdmin && (
+              <div className="space-y-2">
+                <Label>Hubungan dengan Anda</Label>
+                <Select
+                  value={form.relation}
+                  onValueChange={(v) =>
+                    setForm({ ...form, relation: v as NewMemberRelation })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {(v) => RELATION_LABELS[(v ?? "child") as NewMemberRelation]}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="child">👶 Anak</SelectItem>
+                    <SelectItem value="spouse">💑 Pasangan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

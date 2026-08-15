@@ -142,17 +142,19 @@ def create_member(
     """Tambah anggota baru.
 
     Aturan akses:
-    - Hanya user yang akun Auth0-nya sudah tertaut ke anggota silsilah
-      (``auth0_sub``) yang boleh menambah anggota; admin (``ADMIN_SUBS``) boleh
-      bypass agar bisa setup awal.
-    - Anggota baru otomatis terhubung ke anggota yang mewakili user penambah:
-      sebagai **anak** (``relation=child``, default) atau **pasangan**
-      (``relation=spouse``). Admin yang belum tertaut (setup awal) menambah
-      tanpa relasi.
+    - Non-admin: wajib akun Auth0 sudah tertaut ke anggota silsilah
+      (``auth0_sub``), dan anggota baru otomatis terhubung sebagai **anak**
+      (``relation=child``, default) atau **pasangan** (``relation=spouse``)
+      dari anggota yang mewakilinya.
+    - Admin (``ADMIN_SUBS``): menambah anggota **tanpa relasi otomatis**
+      (tidak perlu memilih anak/pasangan) — bisa untuk setup awal maupun
+      anggota berdiri sendiri.
     """
     from config import ADMIN_SUBS
 
-    if user_sub not in ADMIN_SUBS and get_member_by_sub(user_id, user_sub) is None:
+    is_admin = user_sub in ADMIN_SUBS
+
+    if not is_admin and get_member_by_sub(user_id, user_sub) is None:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -172,9 +174,10 @@ def create_member(
     )
     created = add_member(user_id, member)
 
-    # Otomatis jadi anak/pasangan dari user yang menambahkan (bila user tertaut).
-    me = get_member_by_sub(user_id, user_sub)
-    if me is not None:
+    # Non-admin (sudah pasti tertaut): auto-link anak/pasangan.
+    # Admin: tanpa relasi otomatis.
+    if not is_admin:
+        me = get_member_by_sub(user_id, user_sub)
         if body.relation == "spouse":
             link_spouses(user_id, me.id, created.id)
         else:
