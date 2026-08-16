@@ -9,6 +9,7 @@ import {
   linkParentChild,
   linkSpouses,
   listMembersPaginated,
+  setMemberGroups,
 } from "@/lib/firestore";
 import { errorResponse, HttpError } from "@/lib/http";
 import type { Member } from "@/lib/types";
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
       created_at: null,
       auth0_sub: null,
       group_ids: [],
+      is_pic: false,
     };
 
     let created = await addMember(userId, member);
@@ -115,6 +117,10 @@ export async function POST(req: NextRequest) {
     if (!admin) {
       const me = await getMemberBySub(userId, user.sub);
       if (me) {
+        // PIC: anggota baru otomatis masuk ke semua group-nya.
+        if (me.is_pic && me.group_ids.length > 0) {
+          await setMemberGroups(userId, created.id, me.group_ids);
+        }
         if (relation === "spouse") {
           await linkSpouses(userId, me.id, created.id);
         } else {

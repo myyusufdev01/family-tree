@@ -13,12 +13,14 @@ import {
   TableCell,
   TableRow,
 } from "@/components/ui/table";
-import { getTree, deleteMember } from "@/lib/api";
+import { getTree, deleteMember, getMe } from "@/lib/api";
 import LinkUserForm from "@/components/members/link-user-form";
 import MemberGroupsForm from "@/components/members/member-groups-form";
+import MemberPicToggle from "@/components/members/member-pic-toggle";
 import { Separator } from "@/components/ui/separator";
 import { toDisplayDate } from "@/lib/date-format";
-import type { Member, FamilyTree } from "@/lib/types";
+import { shareGroup } from "@/lib/member";
+import type { Member, FamilyTree, Me } from "@/lib/types";
 
 function MemberCard({ member, label }: { member: Member; label?: string }) {
   return (
@@ -64,6 +66,7 @@ export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [tree, setTree] = useState<FamilyTree | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const memberId = params.id as string;
@@ -81,6 +84,13 @@ export default function MemberDetailPage() {
         }
       } finally {
         if (!cancelled) setLoading(false);
+      }
+      // Identitas user untuk menentukan hak ubah/hapus (self-edit & satu group).
+      try {
+        const meData = await getMe();
+        if (!cancelled) setMe(meData);
+      } catch {
+        // getMe gagal → dianggap bukan admin / tidak tertaut.
       }
     })();
     return () => {
@@ -130,6 +140,14 @@ export default function MemberDetailPage() {
   const { member, family } = tree;
   const all = Object.values(family);
 
+  // Hak ubah/hapus: admin bebas; non-admin hanya untuk diri sendiri atau yang
+  // satu group dengannya (selaras dengan aturan di API).
+  const canManage = Boolean(
+    me?.is_admin === true ||
+      me?.member?.id === member.id ||
+      (me?.member && shareGroup(me.member, member)),
+  );
+
   const grandparents = all.filter(
     (m) => member.parent_ids.some((pid) => family[pid]?.parent_ids.includes(m.id))
   );
@@ -150,17 +168,26 @@ export default function MemberDetailPage() {
           <div className="flex items-center justify-between">
             <CardTitle>
               {member.gender === "male" ? "👨" : "👩"} {member.name}
+              {member.is_pic && (
+                <Badge variant="default" className="ml-2 align-middle">
+                  ⭐ PIC
+                </Badge>
+              )}
             </CardTitle>
             <div className="flex gap-2">
               <Link href={`/tree?member=${member.id}`}>
                 <Button size="sm">🌳 Pohon</Button>
               </Link>
-              <Link href={`/members/${member.id}/edit`}>
-                <Button variant="outline" size="sm">✏️ Edit</Button>
-              </Link>
-              <Button variant="destructive" size="sm" onClick={handleDelete}>
-                🗑 Hapus
-              </Button>
+              {canManage && (
+                <>
+                  <Link href={`/members/${member.id}/edit`}>
+                    <Button variant="outline" size="sm">✏️ Edit</Button>
+                  </Link>
+                  <Button variant="destructive" size="sm" onClick={handleDelete}>
+                    🗑 Hapus
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -220,6 +247,13 @@ export default function MemberDetailPage() {
               member={member}
               onSaved={reloadTree}
             />
+          </div>
+          <Separator />
+          <div>
+            <p className="mb-2 text-sm font-semibold text-muted-foreground">
+              ⭐ Status PIC
+            </p>
+            <MemberPicToggle member={member} onSaved={reloadTree} />
           </div>
         </CardContent>
       </Card>

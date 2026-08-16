@@ -159,6 +159,15 @@ export async function setMemberGroups(
   await updateMember(userId, memberId, { group_ids: groupIds });
 }
 
+/** Atur status PIC (Person In Charge) pada anggota. */
+export async function setMemberPic(
+  userId: number,
+  memberId: string,
+  isPic: boolean,
+): Promise<void> {
+  await updateMember(userId, memberId, { is_pic: isPic });
+}
+
 // ── Group CRUD ───────────────────────────────────────────────────────────────
 
 export async function addGroup(userId: number, group: Group): Promise<Group> {

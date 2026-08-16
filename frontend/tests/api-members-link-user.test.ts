@@ -42,6 +42,7 @@ function member(mid: string, auth0Sub: string | null = null): Member {
     created_at: null,
     auth0_sub: auth0Sub,
     group_ids: [],
+    is_pic: false,
   };
 }
 

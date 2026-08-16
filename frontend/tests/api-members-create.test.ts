@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getMember: vi.fn(),
   linkParentChild: vi.fn(),
   linkSpouses: vi.fn(),
+  setMemberGroups: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
@@ -27,6 +28,7 @@ vi.mock("@/lib/firestore", () => ({
   getMember: mocks.getMember,
   linkParentChild: mocks.linkParentChild,
   linkSpouses: mocks.linkSpouses,
+  setMemberGroups: mocks.setMemberGroups,
 }));
 
 import { POST } from "@/app/api/members/route";
@@ -49,6 +51,7 @@ function member(mid: string): Member {
     created_at: null,
     auth0_sub: null,
     group_ids: [],
+    is_pic: false,
   };
 }
 
@@ -151,5 +154,31 @@ describe("POST /api/members", () => {
 
     const res = await POST(jsonRequest({ name: "X", relation: "kakak" }));
     expect(res.status).toBe(422);
+  });
+
+  it("PIC menambah — anggota baru otomatis masuk semua group-nya", async () => {
+    const pic = member("pic");
+    pic.is_pic = true;
+    pic.group_ids = ["g1", "g2"];
+    setupCreate(pic, "member-6");
+
+    const res = await POST(jsonRequest({ name: "Anggota PIC" }));
+    expect(res.status).toBe(200);
+    // Auto-group ke semua group PIC + relasi anak tetap otomatis.
+    expect(mocks.setMemberGroups).toHaveBeenCalledWith(0, "member-6", [
+      "g1",
+      "g2",
+    ]);
+    expect(mocks.linkParentChild).toHaveBeenCalledWith(0, "pic", "member-6");
+  });
+
+  it("user biasa (bukan PIC) menambah — tanpa group otomatis", async () => {
+    const biasa = member("biasa");
+    biasa.group_ids = ["g1"];
+    setupCreate(biasa, "member-7");
+
+    const res = await POST(jsonRequest({ name: "Anak Biasa" }));
+    expect(res.status).toBe(200);
+    expect(mocks.setMemberGroups).not.toHaveBeenCalled();
   });
 });

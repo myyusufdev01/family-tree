@@ -24,6 +24,7 @@ export function memberFromDoc(data: Record<string, unknown>): Member {
     created_at: (data.created_at as string | null) ?? null,
     auth0_sub: data.auth0_sub as string | null | undefined,
     group_ids: strArray(data.group_ids),
+    is_pic: data.is_pic === true,
   };
 }
 
@@ -48,9 +49,15 @@ export function memberToDoc(member: Member): Record<string, unknown> {
       member.created_at ?? new Date().toISOString().replace("Z", ""),
     auth0_sub: member.auth0_sub ?? null,
     group_ids: member.group_ids,
+    is_pic: member.is_pic,
   };
 }
 
 function strArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((v) => String(v)) : [];
+}
+
+/** Apakah dua anggota berbagi setidaknya satu group yang sama. */
+export function shareGroup(a: { group_ids: string[] }, b: { group_ids: string[] }): boolean {
+  return a.group_ids.some((gid) => b.group_ids.includes(gid));
 }

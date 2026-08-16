@@ -134,6 +134,14 @@ export async function setMemberGroups(memberId: string, groupIds: string[]) {
   });
 }
 
+/** Jadikan/batalkan user sebagai PIC — khusus admin. */
+export async function setMemberPic(memberId: string, isPic: boolean) {
+  return request<Member>(`/api/members/${memberId}/pic?user_id=0`, {
+    method: "PUT",
+    body: JSON.stringify({ is_pic: isPic }),
+  });
+}
+
 // ── Admin ───────────────────────────────────────────────────────────────────
 
 export async function getAdminUsers() {

@@ -36,7 +36,10 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
 - **Menautkan akun user khusus admin** — hanya admin (`ADMIN_SUBS`) yang bisa menautkan akun Auth0 ke anggota silsilah lewat UI; admin bebas menautkan siapa saja (termasuk dirinya sendiri untuk setup awal)
 - **Group (pengelompokan anggota) khusus admin** — CRUD group di halaman `/groups` (kode, nama, deskripsi); admin memasangkan setiap user ke satu atau lebih group lewat bagian **"Akses Login → Group User"** di halaman detail anggota (`PUT /api/members/{id}/groups`)
-- **Menambah anggota = anak/pasangan Anda (kecuali admin)** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis terhubung sebagai **anak** (default) atau **pasangan** bagi non-admin. Admin menambah **tanpa relasi otomatis**
+- **Status PIC (Person In Charge) khusus admin** — admin menunjuk user sebagai PIC di halaman detail anggota (`PUT /api/members/{id}/pic`). PIC menambah anggota baru yang **otomatis masuk ke group-nya**, dan membuat **koneksi antar user di group yang sama** (orang tua dari / anak dari / pasangan dari)
+- **Menambah anggota = anak/pasangan Anda (kecuali admin)** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis terhubung sebagai **anak** (default) atau **pasangan** bagi non-admin. Admin menambah **tanpa relasi otomatis**. **PIC**: anggota baru juga otomatis masuk ke semua group-nya
+- **Koneksi terbatas di group yang sama** — koneksi orang tua/anak/pasangan oleh non-admin hanya boleh antar user yang berada di group yang sama; admin bebas
+- **Edit/hapus anggota terbatas di group yang sama** — non-admin hanya bisa mengubah/menghapus anggota yang satu group dengannya (self-edit tetap diizinkan); admin bebas
 - API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
 - Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
 

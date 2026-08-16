@@ -54,6 +54,7 @@ export default function AddMemberPage() {
   }, []);
 
   const isAdmin = me?.is_admin ?? false;
+  const isPic = me?.member?.is_pic ?? false;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +88,12 @@ export default function AddMemberPage() {
               <>
                 Anda (admin) menambah anggota <b>tanpa relasi otomatis</b>.
                 Hubungkan relasinya lewat halaman edit bila perlu.
+              </>
+            ) : isPic ? (
+              <>
+                Anggota baru otomatis terhubung sebagai <b>anak</b> atau{" "}
+                <b>pasangan</b> dari akun Anda, dan otomatis{" "}
+                <b>masuk ke group Anda</b> (status PIC).
               </>
             ) : (
               <>

@@ -43,6 +43,7 @@ function member(mid: string, groupIds: string[] = []): Member {
     created_at: null,
     auth0_sub: "google-oauth2|" + mid,
     group_ids: groupIds,
+    is_pic: false,
   };
 }
 

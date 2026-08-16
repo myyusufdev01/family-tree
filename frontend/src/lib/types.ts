@@ -16,6 +16,8 @@ export interface Member {
   auth0_sub?: string | null;
   /** Id group tempat akun user ini terdaftar (diatur admin di bagian Akses Login). */
   group_ids: string[];
+  /** User berstatus PIC (Person In Charge) — bisa menambah anggota (otomatis masuk group-nya) dan membuat koneksi antar user di group yang sama. */
+  is_pic: boolean;
 }
 
 export interface FamilyTree {
