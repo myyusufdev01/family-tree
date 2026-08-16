@@ -6,7 +6,6 @@ import {
   Background,
   Controls,
   Handle,
-  MiniMap,
   Panel,
   Position,
   ReactFlow,
@@ -403,7 +402,6 @@ export default function TreeView({
         >
           <Background gap={16} size={1} />
           <Controls position="bottom-left" showInteractive={false} />
-          <MiniMap position="top-right" pannable zoomable nodeColor="#0ea5e9" />
           <ResetLayoutButton layoutNodes={nodes} />
         </ReactFlow>
       </div>
