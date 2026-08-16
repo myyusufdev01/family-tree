@@ -231,32 +231,34 @@ export default function MemberDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>🔐 Akses Login</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <LinkUserForm member={member} onLinked={reloadTree} />
-          <Separator />
-          <div>
-            <p className="mb-2 text-sm font-semibold text-muted-foreground">
-              👥 Group User
-            </p>
-            <MemberGroupsForm
-              key={member.id}
-              member={member}
-              onSaved={reloadTree}
-            />
-          </div>
-          <Separator />
-          <div>
-            <p className="mb-2 text-sm font-semibold text-muted-foreground">
-              ⭐ Status PIC
-            </p>
-            <MemberPicToggle member={member} onSaved={reloadTree} />
-          </div>
-        </CardContent>
-      </Card>
+      {me?.is_admin === true && (
+        <Card>
+          <CardHeader>
+            <CardTitle>🔐 Akses Login</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LinkUserForm member={member} onLinked={reloadTree} />
+            <Separator />
+            <div>
+              <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                👥 Group User
+              </p>
+              <MemberGroupsForm
+                key={member.id}
+                member={member}
+                onSaved={reloadTree}
+              />
+            </div>
+            <Separator />
+            <div>
+              <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                ⭐ Status PIC
+              </p>
+              <MemberPicToggle member={member} onSaved={reloadTree} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
