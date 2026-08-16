@@ -150,6 +150,11 @@ export async function getAdminUsers() {
 
 // ── Groups (khusus admin) ───────────────────────────────────────────────────
 
+/** Daftar seluruh grup (read-only) — semua user terautentikasi. */
+export async function listPublicGroups() {
+  return request<{ groups: Group[] }>("/api/groups?user_id=0");
+}
+
 export async function listGroups(page = 1, perPage = 20) {
   return request<PaginatedGroups>(
     `/api/admin/groups?page=${page}&per_page=${perPage}&user_id=0`,

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { getDashboardStats } from "@/lib/api";
-import { toDisplayDate } from "@/lib/date-format";
+import { toDisplayDate, toDisplayMonthYear } from "@/lib/date-format";
 import type { DashboardStats } from "@/lib/types";
 
 /** Warna bar & emoji per kelompok usia (selaras dengan warna garis di pohon). */
@@ -239,7 +239,7 @@ function StatSection({ stats }: { stats: DashboardStats }) {
                       {b.gender === "male" ? "👨" : "👩"} {b.name}
                     </Link>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {shortDate(b.birth_date)}
+                      {toDisplayMonthYear(b.birth_date)}
                     </span>
                     <Badge variant={b.days_until <= 1 ? "default" : "secondary"}>
                       {daysLabel(b.days_until)}
@@ -387,7 +387,7 @@ function StatSection({ stats }: { stats: DashboardStats }) {
                       {b.gender === "male" ? "👨" : "👩"} {b.name}
                     </Link>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {shortDate(b.birth_date)}
+                      {toDisplayMonthYear(b.birth_date)}
                     </span>
                     <Badge
                       variant={

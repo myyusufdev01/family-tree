@@ -15,9 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listMembers, searchMembers } from "@/lib/api";
-import { toDisplayDate } from "@/lib/date-format";
-import type { Member } from "@/lib/types";
+import { listMembers, listPublicGroups, searchMembers } from "@/lib/api";
+import { toDisplayMonthYear } from "@/lib/date-format";
+import type { Group, Member } from "@/lib/types";
 
 const PER_PAGE = 20;
 
@@ -30,6 +30,24 @@ export default function MemberTable() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [groups, setGroups] = useState<Group[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await listPublicGroups();
+        if (!cancelled) setGroups(data.groups);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error(err instanceof Error ? err.message : "Gagal memuat group");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +88,11 @@ export default function MemberTable() {
   }
 
   const displayMembers = searchResults ?? members;
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+
+  function memberGroups(m: Member): Group[] {
+    return (m.group_ids ?? []).map((id) => groupById.get(id)).filter((g): g is Group => !!g);
+  }
 
   return (
     <Card>
@@ -114,36 +137,37 @@ export default function MemberTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>Jenis Kelamin</TableHead>
-                <TableHead>Lahir</TableHead>
-                <TableHead>Telepon</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead>Bulan/Tahun Lahir</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayMembers.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/members/${m.id}`} className="hover:underline">
-                      {m.gender === "male" ? "👨" : "👩"} {m.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={m.gender === "male" ? "default" : "secondary"}>
-                      {m.gender === "male" ? "Laki-laki" : "Perempuan"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{toDisplayDate(m.birth_date) || "-"}</TableCell>
-                  <TableCell>{m.phone || "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/members/${m.id}/edit`}>
-                      <Button variant="outline" size="sm">
-                        ✏️ Edit
-                      </Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {displayMembers.map((m) => {
+                const groupsOfMember = memberGroups(m);
+                return (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/members/${m.id}`} className="hover:underline">
+                        {m.gender === "male" ? "👨" : "👩"} {m.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {groupsOfMember.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {groupsOfMember.map((g) => (
+                            <Badge key={g.id} variant="secondary">
+                              {g.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>{toDisplayMonthYear(m.birth_date) || "-"}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

@@ -12,6 +12,14 @@ export function toDisplayDate(iso: string | null | undefined): string {
   return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
+/** Konversi ISO "YYYY-MM-DD" -> tampilan bulan/tahun "MM/YYYY". Kosong jika tidak valid. */
+export function toDisplayMonthYear(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!match) return "";
+  return `${match[2]}/${match[1]}`;
+}
+
 /** Cek apakah tanggal (hari, bulan, tahun) valid. */
 export function isValidDate(day: number, month: number, year: number): boolean {
   if (year < 1900 || year > 2100) return false;
