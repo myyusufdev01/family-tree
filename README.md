@@ -79,10 +79,14 @@ tidak perlu membuat API di Auth0. Access token (opaque) diverifikasi server
 ### 1. Setup di Auth0 Dashboard
 
 1. Buat aplikasi **Single Page Application** (mis. `Family Tree Web`) dan catat **Domain** + **Client ID**-nya.
-2. Di pengaturan aplikasi SPA, isi URL berikut (ganti `https://your-app.example.com` sesuai deployment):
-   - **Allowed Callback URLs** : `http://localhost:3000,https://your-app.example.com`
-   - **Allowed Logout URLs** : `http://localhost:3000,https://your-app.example.com`
-   - **Allowed Web Origins**   : `http://localhost:3000,https://your-app.example.com`
+2. Di pengaturan aplikasi SPA, isi URL berikut (untuk deployment Cloud Run `family-tree-bot`,
+   tambahkan URL di bawah — sesuaikan bila memakai domain sendiri):
+   - **Allowed Callback URLs** : `http://localhost:3000,https://family-tree-bot-491602777728.asia-southeast1.run.app,https://family-tree-bot-ijkjkov7sq-as.a.run.app`
+   - **Allowed Logout URLs** : `http://localhost:3000,https://family-tree-bot-491602777728.asia-southeast1.run.app,https://family-tree-bot-ijkjkov7sq-as.a.run.app`
+   - **Allowed Web Origins**   : `http://localhost:3000,https://family-tree-bot-491602777728.asia-southeast1.run.app,https://family-tree-bot-ijkjkov7sq-as.a.run.app`
+   > Jika muncul error **"Callback URL mismatch"** saat login, berarti URL yang dikunjungi belum
+   > didaftarkan di **Allowed Callback URLs** di atas (aplikasi mengirim `window.location.origin`
+   > sebagai `redirect_uri`).
 3. **Tidak perlu membuat API** di Auth0 — karena token diverifikasi via `/userinfo`, audience/API tidak dipakai.
 
 ### 2. Variabel environment (`frontend/.env.local`)
