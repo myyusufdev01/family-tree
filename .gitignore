@@ -1,10 +1,15 @@
 # Env & kredensial
-.env
+.env*
+!.env.example
+*.pem
 serviceAccountKey.json
 
 # IDE / tooling
 .claude/
 .vscode/
+
+# OS
+.DS_Store
 
 # Frontend (Next.js) — lihat juga frontend/.gitignore
 frontend/node_modules/
