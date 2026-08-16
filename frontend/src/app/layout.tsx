@@ -20,9 +20,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-background">
         <AppProviders>
           <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container mx-auto flex h-14 items-center gap-4 px-4">
-              <Link href="/" className="flex items-center gap-2 font-semibold">
-                🌳 Family Tree
+            <div className="container mx-auto flex h-14 items-center gap-2 px-4 sm:gap-4">
+              <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
+                <span aria-hidden="true" className="text-xl leading-none">
+                  🌳
+                </span>
+                <span className="hidden sm:inline">Family Tree</span>
               </Link>
               <Nav />
               <AuthButtons />
