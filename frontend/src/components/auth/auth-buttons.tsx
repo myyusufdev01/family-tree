@@ -28,6 +28,7 @@ export default function AuthButtons() {
     return (
       <Button
         size="sm"
+        className="hidden md:inline-flex"
         onClick={() =>
           loginWithRedirect({
             appState: { returnTo: pathname || "/" },
@@ -62,6 +63,7 @@ export default function AuthButtons() {
       <Button
         variant="ghost"
         size="sm"
+        className="hidden md:inline-flex"
         onClick={() =>
           logout({ logoutParams: { returnTo: window.location.origin } })
         }

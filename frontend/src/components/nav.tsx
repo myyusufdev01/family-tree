@@ -5,8 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getMe } from "@/lib/api";
+import { useAuth0 } from "@auth0/auth0-react";
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, List, Menu, TreePine, Users } from "lucide-react";
+import { LayoutDashboard, List, LogIn, LogOut, Menu, TreePine, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,6 +51,13 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    loginWithRedirect,
+    logout,
+  } = useAuth0();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -132,6 +140,47 @@ export default function Nav() {
                 );
               })}
             </DropdownMenuGroup>
+
+            {!isAuthLoading && (
+              <>
+                <DropdownMenuSeparator />
+                {isAuthenticated ? (
+                  <DropdownMenuGroup>
+                    <div className="px-1.5 py-1">
+                      <p className="truncate text-sm font-medium leading-tight">
+                        {user?.name || user?.email || user?.nickname || "Pengguna"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Terhubung via Auth0</p>
+                    </div>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() =>
+                        logout({ logoutParams: { returnTo: window.location.origin } })
+                      }
+                      className="gap-2 py-2"
+                    >
+                      <LogOut className="size-4" />
+                      Keluar
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                ) : (
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        loginWithRedirect({
+                          appState: { returnTo: pathname || "/" },
+                          authorizationParams: { screen_hint: "login" },
+                        })
+                      }
+                      className="gap-2 py-2"
+                    >
+                      <LogIn className="size-4" />
+                      Masuk
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                )}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
