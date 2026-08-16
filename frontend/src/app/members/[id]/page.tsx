@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { getTree, deleteMember, getMe } from "@/lib/api";
 import LinkUserForm from "@/components/members/link-user-form";
+import MemberActions from "@/components/members/member-actions";
 import MemberGroupsForm from "@/components/members/member-groups-form";
 import MemberPicToggle from "@/components/members/member-pic-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -174,21 +175,11 @@ export default function MemberDetailPage() {
                 </Badge>
               )}
             </CardTitle>
-            <div className="flex gap-2">
-              <Link href={`/tree?member=${member.id}`}>
-                <Button size="sm">🌳 Pohon</Button>
-              </Link>
-              {canManage && (
-                <>
-                  <Link href={`/members/${member.id}/edit`}>
-                    <Button variant="outline" size="sm">✏️ Edit</Button>
-                  </Link>
-                  <Button variant="destructive" size="sm" onClick={handleDelete}>
-                    🗑 Hapus
-                  </Button>
-                </>
-              )}
-            </div>
+            <MemberActions
+              memberId={member.id}
+              canManage={canManage}
+              onDelete={handleDelete}
+            />
           </div>
         </CardHeader>
         <CardContent>
