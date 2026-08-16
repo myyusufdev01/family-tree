@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       sibling_ids: [],
       created_at: null,
       auth0_sub: null,
+      group_ids: [],
     };
 
     let created = await addMember(userId, member);

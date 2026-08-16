@@ -23,6 +23,7 @@ export function memberFromDoc(data: Record<string, unknown>): Member {
     sibling_ids: strArray(data.sibling_ids),
     created_at: (data.created_at as string | null) ?? null,
     auth0_sub: data.auth0_sub as string | null | undefined,
+    group_ids: strArray(data.group_ids),
   };
 }
 
@@ -46,6 +47,7 @@ export function memberToDoc(member: Member): Record<string, unknown> {
     created_at:
       member.created_at ?? new Date().toISOString().replace("Z", ""),
     auth0_sub: member.auth0_sub ?? null,
+    group_ids: member.group_ids,
   };
 }
 

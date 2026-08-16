@@ -2,13 +2,15 @@ import { randomUUID } from "node:crypto";
 import { Firestore } from "@google-cloud/firestore";
 import { getFirestoreProjectId } from "./config";
 import { memberFromDoc, memberToDoc } from "./member";
-import type { Member } from "./types";
+import { groupFromDoc, groupToDoc } from "./group";
+import type { Group, Member } from "./types";
 
 /**
  * Akses Firestore (port dari `backend/db/firestore.py`).
  *
  * Struktur data:
  *   family_trees/{user_id}/members/{member_id}
+ *   family_trees/{user_id}/groups/{group_id}
  *   approved_users/{user_id}
  *
  * `user_id=0` dipakai sebagai pohon bersama keluarga (default).
@@ -35,6 +37,10 @@ function _membersRef(userId: number) {
 
 function _approvedRef() {
   return getDb().collection("approved_users");
+}
+
+function _groupsRef(userId: number) {
+  return _treeRef(userId).collection("groups");
 }
 
 // ── Member CRUD ─────────────────────────────────────────────────────────────
@@ -137,6 +143,84 @@ export async function linkUserToMember(
   sub: string,
 ): Promise<void> {
   await updateMember(userId, memberId, { auth0_sub: sub });
+}
+
+/**
+ * Atur keanggotaan group pada anggota (`group_ids`).
+ *
+ * Id group yang tidak dikenal dibiarkan ter-filter di layer API; di sini hanya
+ * menulis daftar yang sudah tervalidasi.
+ */
+export async function setMemberGroups(
+  userId: number,
+  memberId: string,
+  groupIds: string[],
+): Promise<void> {
+  await updateMember(userId, memberId, { group_ids: groupIds });
+}
+
+// ── Group CRUD ───────────────────────────────────────────────────────────────
+
+export async function addGroup(userId: number, group: Group): Promise<Group> {
+  const id = group.id || randomUUID();
+  const doc = { ...groupToDoc(group), id };
+  await _groupsRef(userId).doc(id).set(doc);
+  return groupFromDoc(doc);
+}
+
+export async function getGroup(
+  userId: number,
+  groupId: string,
+): Promise<Group | null> {
+  const doc = await _groupsRef(userId).doc(groupId).get();
+  return doc.exists ? groupFromDoc(doc.data() ?? {}) : null;
+}
+
+/** Ambil semua grup, diurutkan berdasarkan kode (case-insensitive). */
+export async function listGroups(userId: number): Promise<Group[]> {
+  const snapshot = await _groupsRef(userId).orderBy("code_lower").get();
+  return snapshot.docs.map((d) => groupFromDoc(d.data()));
+}
+
+/** Return `perPage` grup mulai dari `offset` + info apakah masih ada lagi. */
+export async function listGroupsPaginated(
+  userId: number,
+  perPage = 20,
+  offset = 0,
+): Promise<{ groups: Group[]; hasMore: boolean }> {
+  const snapshot = await _groupsRef(userId)
+    .orderBy("code_lower")
+    .offset(offset)
+    .limit(perPage + 1)
+    .get();
+  const docs = snapshot.docs;
+  const hasMore = docs.length > perPage;
+  return {
+    groups: docs.slice(0, perPage).map((d) => groupFromDoc(d.data())),
+    hasMore,
+  };
+}
+
+/** Jumlah seluruh grup milik user (untuk pagination). */
+export async function countGroups(userId: number): Promise<number> {
+  const snapshot = await _groupsRef(userId).count().get();
+  return snapshot.data().count;
+}
+
+export async function updateGroup(
+  userId: number,
+  groupId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  // Jaga code_lower tetap sinkron saat code diubah.
+  if (typeof fields.code === "string") {
+    fields.code_lower = fields.code.toLowerCase();
+  }
+  await _groupsRef(userId).doc(groupId).update(fields);
+}
+
+export async function deleteGroup(userId: number, groupId: string): Promise<void> {
+  await _groupsRef(userId).doc(groupId).delete();
 }
 
 // ── Approved Users ───────────────────────────────────────────────────────────

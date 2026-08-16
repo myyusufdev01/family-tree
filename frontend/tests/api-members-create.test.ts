@@ -48,6 +48,7 @@ function member(mid: string): Member {
     sibling_ids: [],
     created_at: null,
     auth0_sub: null,
+    group_ids: [],
   };
 }
 

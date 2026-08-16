@@ -14,6 +14,8 @@ export interface Member {
   created_at: string | null;
   /** Akun Auth0 (sub/User ID) yang tertaut ke anggota ini — 1 akun = 1 anggota. */
   auth0_sub?: string | null;
+  /** Id group tempat akun user ini terdaftar (diatur admin di bagian Akses Login). */
+  group_ids: string[];
 }
 
 export interface FamilyTree {
@@ -38,6 +40,27 @@ export interface PaginatedMembers {
 
 export interface SearchResults {
   results: Member[];
+}
+
+// ── Group ──────────────────────────────────────────────────────────────────────
+
+export interface Group {
+  id: string;
+  /** Kode unik grup (mis. "EXT", "INT") — case-insensitive. */
+  code: string;
+  code_lower?: string;
+  name: string;
+  description: string | null;
+  created_at: string | null;
+}
+
+export interface PaginatedGroups {
+  groups: Group[];
+  page: number;
+  per_page: number;
+  has_more: boolean;
+  total?: number;
+  total_pages?: number;
 }
 
 /** Hubungan anggota baru dengan user yang menambah: anak atau pasangan. */

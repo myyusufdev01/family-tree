@@ -1,5 +1,5 @@
 import type {
-  Member, FamilyTree, PaginatedMembers, SearchResults,
+  Member, Group, FamilyTree, PaginatedMembers, PaginatedGroups, SearchResults,
   AdminUsers, AdminStats, DashboardStats, Me, NewMemberRelation,
 } from "./types";
 import { getValidAccessToken, refreshAccessToken } from "./auth-token";
@@ -126,10 +126,50 @@ export async function linkUserToMember(memberId: string, sub: string) {
   });
 }
 
+/** Atur group tempat akun user (anggota) terdaftar — khusus admin. */
+export async function setMemberGroups(memberId: string, groupIds: string[]) {
+  return request<Member>(`/api/members/${memberId}/groups?user_id=0`, {
+    method: "PUT",
+    body: JSON.stringify({ group_ids: groupIds }),
+  });
+}
+
 // ── Admin ───────────────────────────────────────────────────────────────────
 
 export async function getAdminUsers() {
   return request<AdminUsers>("/api/admin/users?user_id=0");
+}
+
+// ── Groups (khusus admin) ───────────────────────────────────────────────────
+
+export async function listGroups(page = 1, perPage = 20) {
+  return request<PaginatedGroups>(
+    `/api/admin/groups?page=${page}&per_page=${perPage}&user_id=0`,
+  );
+}
+
+export async function getGroup(id: string) {
+  return request<Group>(`/api/admin/groups/${id}?user_id=0`);
+}
+
+export async function createGroup(data: Partial<Group>) {
+  return request<Group>("/api/admin/groups?user_id=0", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGroup(id: string, data: Partial<Group>) {
+  return request<Group>(`/api/admin/groups/${id}?user_id=0`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGroup(id: string) {
+  return request<{ status: string }>(`/api/admin/groups/${id}?user_id=0`, {
+    method: "DELETE",
+  });
 }
 
 export async function getAdminStats() {

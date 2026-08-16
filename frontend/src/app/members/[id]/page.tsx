@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { getTree, deleteMember } from "@/lib/api";
 import LinkUserForm from "@/components/members/link-user-form";
+import MemberGroupsForm from "@/components/members/member-groups-form";
+import { Separator } from "@/components/ui/separator";
 import { toDisplayDate } from "@/lib/date-format";
 import type { Member, FamilyTree } from "@/lib/types";
 
@@ -206,8 +208,19 @@ export default function MemberDetailPage() {
         <CardHeader>
           <CardTitle>🔐 Akses Login</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <LinkUserForm member={member} onLinked={reloadTree} />
+          <Separator />
+          <div>
+            <p className="mb-2 text-sm font-semibold text-muted-foreground">
+              👥 Group User
+            </p>
+            <MemberGroupsForm
+              key={member.id}
+              member={member}
+              onSaved={reloadTree}
+            />
+          </div>
         </CardContent>
       </Card>
 

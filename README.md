@@ -35,6 +35,7 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 - Format tanggal DD/MM/YYYY
 - **Login wajib via Auth0** (Universal Login) — seluruh anggota keluarga berbagi **satu pohon** yang sama
 - **Menautkan akun user khusus admin** — hanya admin (`ADMIN_SUBS`) yang bisa menautkan akun Auth0 ke anggota silsilah lewat UI; admin bebas menautkan siapa saja (termasuk dirinya sendiri untuk setup awal)
+- **Group (pengelompokan anggota) khusus admin** — CRUD group di halaman `/groups` (kode, nama, deskripsi); admin memasangkan setiap user ke satu atau lebih group lewat bagian **"Akses Login → Group User"** di halaman detail anggota (`PUT /api/members/{id}/groups`)
 - **Menambah anggota = anak/pasangan Anda (kecuali admin)** — hanya user yang akunnya sudah tertaut yang bisa menambah anggota; anggota baru otomatis terhubung sebagai **anak** (default) atau **pasangan** bagi non-admin. Admin menambah **tanpa relasi otomatis**
 - API admin (approve user & statistik, berdasarkan `ADMIN_SUBS` di Auth0)
 - Data pohon bersama di `user_id=0` (kompatibel dengan data existing)
