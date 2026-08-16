@@ -38,15 +38,25 @@ gcloud services enable \
   --project="$PROJECT_ID"
 
 echo "==> [2/4] Build & push Docker image..."
-gcloud builds submit \
-  --tag "$IMAGE" \
-  --project="$PROJECT_ID" \
+# Catatan: `gcloud builds submit` di SDK 535 tidak mendukung --build-arg,
+# jadi build dilakukan lokal dengan docker (sama seperti CI deploy.yml)
+# lalu image di-push ke GCR.
+IMAGE_TAG="$IMAGE:latest"
+gcloud auth configure-docker --project="$PROJECT_ID" --quiet
+docker build \
+  -t "$IMAGE_TAG" \
   --build-arg NEXT_PUBLIC_AUTH0_DOMAIN="$NEXT_PUBLIC_AUTH0_DOMAIN" \
-  --build-arg NEXT_PUBLIC_AUTH0_CLIENT_ID="$NEXT_PUBLIC_AUTH0_CLIENT_ID"
+  --build-arg NEXT_PUBLIC_AUTH0_CLIENT_ID="$NEXT_PUBLIC_AUTH0_CLIENT_ID" \
+  .
+docker push "$IMAGE_TAG"
 
 echo "==> [3/4] Deploy ke Cloud Run..."
+# Catatan: tanpa flag --service-account, Cloud Run memakai compute default SA
+# (roles/editor → akses Firestore). Konsisten dengan CI (deploy.yml) dan
+# service yang sudah berjalan. Service account "firebase-adminsdk@..." TIDAK
+# ada di project ini.
 gcloud run deploy "$SERVICE_NAME" \
-  --image "$IMAGE" \
+  --image "$IMAGE_TAG" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
@@ -56,7 +66,6 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 0 \
   --max-instances 3 \
   --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID,AUTH0_DOMAIN=$AUTH0_DOMAIN,ADMIN_SUBS=$ADMIN_SUBS" \
-  --service-account "firebase-adminsdk@$PROJECT_ID.iam.gserviceaccount.com" \
   --project="$PROJECT_ID"
 
 echo "==> [4/4] Verifikasi..."
