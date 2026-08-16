@@ -1,12 +1,12 @@
+# Env & kredensial
 .env
 serviceAccountKey.json
-__pycache__/
-*.py[cod]
-*.pyo
-.venv/
-venv/
-*.egg-info/
-dist/
-build/
+
+# IDE / tooling
 .claude/
 .vscode/
+
+# Frontend (Next.js) — lihat juga frontend/.gitignore
+frontend/node_modules/
+frontend/.next/
+frontend/out/

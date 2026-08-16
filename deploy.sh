@@ -7,36 +7,56 @@ REGION="asia-southeast1"
 SERVICE_NAME="family-tree-bot"
 IMAGE="gcr.io/$PROJECT_ID/$SERVICE_NAME"
 
-# ── Validasi env vars ────────────────────────────────────────
-if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-  echo "ERROR: Set environment variable TELEGRAM_BOT_TOKEN terlebih dahulu"
+# ── Baca nilai env dari frontend/.env.local bila belum di-set ──
+load_env() {
+  [ -f "frontend/.env.local" ] || return 0
+  while IFS='=' read -r key value; do
+    case "$key" in
+      \#*|"") continue ;;
+    esac
+    export "$key=$value"
+  done < "frontend/.env.local"
+}
+load_env
+
+NEXT_PUBLIC_AUTH0_DOMAIN="${NEXT_PUBLIC_AUTH0_DOMAIN:-}"
+NEXT_PUBLIC_AUTH0_CLIENT_ID="${NEXT_PUBLIC_AUTH0_CLIENT_ID:-}"
+AUTH0_DOMAIN="${AUTH0_DOMAIN:-$NEXT_PUBLIC_AUTH0_DOMAIN}"
+ADMIN_SUBS="${ADMIN_SUBS:-}"
+
+if [ -z "$NEXT_PUBLIC_AUTH0_DOMAIN" ] || [ -z "$NEXT_PUBLIC_AUTH0_CLIENT_ID" ]; then
+  echo "ERROR: NEXT_PUBLIC_AUTH0_DOMAIN & NEXT_PUBLIC_AUTH0_CLIENT_ID harus diisi"
+  echo "       (biasanya sudah ada di frontend/.env.local)."
   exit 1
 fi
 
-echo "==> [1/5] Mengaktifkan GCP APIs..."
+echo "==> [1/4] Mengaktifkan GCP APIs..."
 gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
-  secretmanager.googleapis.com \
   firestore.googleapis.com \
   --project="$PROJECT_ID"
 
-echo "==> [2/5] Build & push Docker image ke Container Registry..."
-gcloud builds submit \
-  --tag "$IMAGE" \
-  --project="$PROJECT_ID"
+echo "==> [2/4] Build & push Docker image..."
+# Catatan: `gcloud builds submit` di SDK 535 tidak mendukung --build-arg,
+# jadi build dilakukan lokal dengan docker (sama seperti CI deploy.yml)
+# lalu image di-push ke GCR.
+IMAGE_TAG="$IMAGE:latest"
+gcloud auth configure-docker --project="$PROJECT_ID" --quiet
+docker build \
+  -t "$IMAGE_TAG" \
+  --build-arg NEXT_PUBLIC_AUTH0_DOMAIN="$NEXT_PUBLIC_AUTH0_DOMAIN" \
+  --build-arg NEXT_PUBLIC_AUTH0_CLIENT_ID="$NEXT_PUBLIC_AUTH0_CLIENT_ID" \
+  .
+docker push "$IMAGE_TAG"
 
-echo "==> [3/5] Simpan BOT TOKEN ke Secret Manager..."
-echo -n "$TELEGRAM_BOT_TOKEN" | gcloud secrets create telegram-bot-token \
-  --data-file=- \
-  --project="$PROJECT_ID" 2>/dev/null || \
-echo -n "$TELEGRAM_BOT_TOKEN" | gcloud secrets versions add telegram-bot-token \
-  --data-file=- \
-  --project="$PROJECT_ID"
-
-echo "==> [4/5] Deploy ke Cloud Run..."
+echo "==> [3/4] Deploy ke Cloud Run..."
+# Catatan: tanpa flag --service-account, Cloud Run memakai compute default SA
+# (roles/editor → akses Firestore). Konsisten dengan CI (deploy.yml) dan
+# service yang sudah berjalan. Service account "firebase-adminsdk@..." TIDAK
+# ada di project ini.
 gcloud run deploy "$SERVICE_NAME" \
-  --image "$IMAGE" \
+  --image "$IMAGE_TAG" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
@@ -45,31 +65,17 @@ gcloud run deploy "$SERVICE_NAME" \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 3 \
-  --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID" \
-  --set-secrets "TELEGRAM_BOT_TOKEN=telegram-bot-token:latest" \
-  --service-account "firebase-adminsdk@$PROJECT_ID.iam.gserviceaccount.com" \
+  --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID,AUTH0_DOMAIN=$AUTH0_DOMAIN,ADMIN_SUBS=$ADMIN_SUBS" \
   --project="$PROJECT_ID"
 
-echo "==> [5/5] Set Telegram Webhook..."
+echo "==> [4/4] Verifikasi..."
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" \
   --region "$REGION" \
   --project="$PROJECT_ID" \
   --format "value(status.url)")
 
-WEBHOOK_URL="$SERVICE_URL/telegram"
-echo "Service URL: $SERVICE_URL"
-echo "Webhook URL: $WEBHOOK_URL"
-
-# Update Cloud Run env var WEBHOOK_URL
-gcloud run services update "$SERVICE_NAME" \
-  --region "$REGION" \
-  --project="$PROJECT_ID" \
-  --set-env-vars "FIRESTORE_PROJECT_ID=$PROJECT_ID,WEBHOOK_URL=$WEBHOOK_URL"
-
-# Daftarkan webhook ke Telegram
-curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${WEBHOOK_URL}" | python3 -m json.tool
-
 echo ""
 echo "✅ Deploy selesai!"
-echo "   Bot URL : $SERVICE_URL"
-echo "   Webhook  : $WEBHOOK_URL"
+echo "   Aplikasi : $SERVICE_URL"
+echo "   Health   : $SERVICE_URL/api/health"
+

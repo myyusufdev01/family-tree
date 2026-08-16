@@ -1,0 +1,208 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DateInput } from "@/components/ui/date-input";
+import { createMember, getMe } from "@/lib/api";
+import { GENDER_LABELS } from "@/lib/labels";
+import type { Me, NewMemberRelation } from "@/lib/types";
+
+const RELATION_LABELS: Record<NewMemberRelation, string> = {
+  child: "👶 Anak",
+  spouse: "💑 Pasangan",
+};
+
+export default function AddMemberPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    gender: "male" as "male" | "female",
+    relation: "child" as NewMemberRelation,
+    birth_date: "",
+    death_date: "",
+    phone: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getMe();
+        if (!cancelled) setMe(data);
+      } catch {
+        if (!cancelled) setMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isAdmin = me?.is_admin ?? false;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setLoading(true);
+    try {
+      const member = await createMember({
+        name: form.name.trim(),
+        gender: form.gender,
+        ...(!isAdmin ? { relation: form.relation } : {}),
+        birth_date: form.birth_date || null,
+        death_date: form.death_date || null,
+        phone: form.phone || null,
+        notes: form.notes || null,
+      });
+      router.push(`/members/${member.id}`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal menyimpan");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="max-w-xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin ? (
+              <>
+                Anda (admin) menambah anggota <b>tanpa relasi otomatis</b>.
+                Hubungkan relasinya lewat halaman edit bila perlu.
+              </>
+            ) : (
+              <>
+                Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
+                <b>pasangan</b> dari akun Anda di silsilah.
+              </>
+            )}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Lengkap *</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Masukkan nama lengkap"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Jenis Kelamin</Label>
+              <Select
+                value={form.gender}
+                onValueChange={(v) => setForm({ ...form, gender: v as "male" | "female" })}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {(v) => GENDER_LABELS[(v ?? "male") as "male" | "female"]}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">👨 Laki-laki</SelectItem>
+                  <SelectItem value="female">👩 Perempuan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {me !== null && !isAdmin && (
+              <div className="space-y-2">
+                <Label>Hubungan dengan Anda</Label>
+                <Select
+                  value={form.relation}
+                  onValueChange={(v) =>
+                    setForm({ ...form, relation: v as NewMemberRelation })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {(v) => RELATION_LABELS[(v ?? "child") as NewMemberRelation]}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="child">👶 Anak</SelectItem>
+                    <SelectItem value="spouse">💑 Pasangan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="birth">Tanggal Lahir</Label>
+                <DateInput
+                  id="birth"
+                  value={form.birth_date}
+                  onChange={(iso) => setForm({ ...form, birth_date: iso })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="death">Tanggal Wafat</Label>
+                <DateInput
+                  id="death"
+                  value={form.death_date}
+                  onChange={(iso) => setForm({ ...form, death_date: iso })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Nomor Telepon</Label>
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="0812-3456-7890"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Catatan</Label>
+              <Textarea
+                id="notes"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Catatan tambahan..."
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" disabled={loading || !form.name.trim()}>
+                {loading ? "Menyimpan..." : "💾 Simpan"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/")}
+              >
+                ❌ Batal
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
