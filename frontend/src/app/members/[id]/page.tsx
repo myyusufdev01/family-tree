@@ -220,6 +220,16 @@ export default function MemberDetailPage() {
                   <TableCell>{member.phone}</TableCell>
                 </TableRow>
               )}
+              {me?.is_admin === true && member.auth0_sub && (
+                <TableRow>
+                  <TableCell className="font-medium">User ID (Auth0)</TableCell>
+                  <TableCell>
+                    <code className="break-all rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                      {member.auth0_sub}
+                    </code>
+                  </TableCell>
+                </TableRow>
+              )}
               {member.notes && (
                 <TableRow>
                   <TableCell className="font-medium">Catatan</TableCell>
