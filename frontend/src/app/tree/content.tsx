@@ -86,9 +86,9 @@ export default function TreePageContent() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Pilih satu anggota sebagai <strong>pusat pohon</strong>. Pohon menampilkan maksimal 80
-            anggota terdekat (3 generasi ke atas & ke bawah) agar tetap ringan walau total keluarga
-            mencapai ribuan.
+            Pilih satu anggota sebagai <strong>pusat pohon</strong>. Mula-mula hanya kartu fokus
+            yang tampil — <strong>klik kartu</strong> untuk membuka cabang keluarganya, klik lagi
+            untuk menutup. Pohon maksimal 80 anggota terdekat (3 generasi ke atas & ke bawah).
           </p>
 
           <div className="flex gap-2">
@@ -164,7 +164,11 @@ export default function TreePageContent() {
           <Skeleton className="h-8 w-64" />
         </div>
       ) : memberParam && tree ? (
-        <TreeView tree={tree} onMakeRoot={handleMakeRoot} />
+        <TreeView
+          key={tree.root_id ?? tree.member.id}
+          tree={tree}
+          onMakeRoot={handleMakeRoot}
+        />
       ) : !memberParam && (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
           🌳 Belum ada pohon yang ditampilkan.

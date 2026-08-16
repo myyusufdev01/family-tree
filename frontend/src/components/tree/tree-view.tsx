@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   Background,
   Controls,
@@ -9,6 +16,8 @@ import {
   Panel,
   Position,
   ReactFlow,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
   type Edge,
   type Node,
@@ -67,7 +76,10 @@ interface TreeLayout {
 type MemberNodeData = {
   member: Member;
   isRoot: boolean;
+  isExpanded: boolean;
+  hiddenCount: number;
   onMakeRoot: (id: string) => void;
+  onToggle: (id: string) => void;
 };
 
 type MemberFlowNode = Node<MemberNodeData, "member">;
@@ -207,6 +219,67 @@ function layoutTree(tree: FamilyTree): TreeLayout {
   return { placed, edges, levelMeta };
 }
 
+/**
+ * Hitung subset anggota yang ditampilkan berdasarkan state expand/collapse.
+ * - Root selalu tampil.
+ * - Kartu yang "terbuka" ikut menampilkan orang tua, pasangan, dan anaknya
+ *   (saudara kandung muncul lewat orang tua yang terbuka).
+ * - Sisanya tersembunyi sampai kartu terkait diklik.
+ */
+function computeVisible(tree: FamilyTree, expanded: Set<string>): FamilyTree {
+  const rootId = tree.root_id ?? tree.member.id;
+  const full = tree.family;
+  if (!full[rootId]) return tree;
+
+  const family: Record<string, Member> = {};
+  const generations: Record<string, number> = {};
+  const seen = new Set<string>([rootId]);
+  const queue: string[] = [rootId];
+
+  while (queue.length > 0) {
+    const id = queue.shift() as string;
+    const m = full[id];
+    if (!m) continue;
+    family[id] = m;
+    generations[id] = tree.generations?.[id] ?? 0;
+    if (!expanded.has(id)) continue;
+
+    const rels = [
+      ...(m.parent_ids ?? []),
+      ...(m.spouse_ids ?? []),
+      ...(m.child_ids ?? []),
+    ];
+    for (const rid of rels) {
+      if (seen.has(rid) || !full[rid]) continue;
+      seen.add(rid);
+      queue.push(rid);
+    }
+  }
+
+  return {
+    member: tree.member,
+    family,
+    generations,
+    root_id: rootId,
+    truncated: tree.truncated,
+    total_nodes: tree.total_nodes,
+  };
+}
+
+/** Banyaknya relasi (orang tua/pasangan/anak) di pohon penuh yang belum terlihat. */
+function hiddenRelatedCount(
+  m: Member,
+  full: Record<string, Member>,
+  visible: Record<string, Member>,
+): number {
+  const rels = [
+    ...(m.parent_ids ?? []),
+    ...(m.spouse_ids ?? []),
+    ...(m.child_ids ?? []),
+  ];
+  return new Set(rels.filter((r) => full[r] && !visible[r])).size;
+}
+
 function yearOf(iso: string | null | undefined): string {
   if (!iso) return "";
   const m = /^(\d{4})/.exec(iso);
@@ -219,20 +292,23 @@ function yearOf(iso: string | null | undefined): string {
  * garis (atas/bawah untuk orang tua–anak, kiri/kanan untuk pasangan/saudara).
  */
 function MemberCard({ data }: NodeProps<MemberFlowNode>) {
-  const { member, isRoot, onMakeRoot } = data;
+  const { member, isRoot, isExpanded, hiddenCount, onMakeRoot, onToggle } = data;
   const birthYear = yearOf(member.birth_date);
   const deathYear = yearOf(member.death_date);
 
   return (
     <div
       className={cn(
-        "flex flex-col rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/60",
+        "flex cursor-pointer flex-col rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/60",
         isRoot && "border-primary/50 ring-2 ring-primary/30",
       )}
       style={{ width: CARD_W, height: CARD_H }}
+      onClick={() => onToggle(member.id)}
+      title={isExpanded ? "Klik untuk menutup cabang" : "Klik untuk membuka cabang"}
     >
       <Link
         href={`/members/${member.id}`}
+        onClick={(e) => e.stopPropagation()}
         className="nodrag flex min-w-0 items-center gap-1.5 text-sm font-medium hover:underline"
         title={`Lihat detail ${member.name}`}
       >
@@ -251,10 +327,30 @@ function MemberCard({ data }: NodeProps<MemberFlowNode>) {
             ★ Fokus
           </span>
         )}
+        {(isExpanded || hiddenCount > 0) && (
+          <span
+            className={cn(
+              "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+              isExpanded
+                ? "bg-muted text-muted-foreground"
+                : "bg-primary/10 text-primary",
+            )}
+            title={
+              isExpanded
+                ? "Cabang terbuka — klik kartu untuk menutup"
+                : `${hiddenCount} anggota terkait tersembunyi`
+            }
+          >
+            {isExpanded ? "▾" : `▸ ${hiddenCount}`}
+          </span>
+        )}
         <button
           type="button"
           title="Jadikan pusat pohon"
-          onClick={() => onMakeRoot(member.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMakeRoot(member.id);
+          }}
           className="nodrag ml-auto rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Target className="size-3.5" />
@@ -273,8 +369,8 @@ function MemberCard({ data }: NodeProps<MemberFlowNode>) {
 const nodeTypes = { member: MemberCard };
 
 /** Tombol untuk mengembalikan kartu ke posisi layout otomatis setelah digeser. */
-function ResetLayoutButton({ layoutNodes }: { layoutNodes: MemberFlowNode[] }) {
-  const { setNodes, fitView } = useReactFlow<MemberFlowNode, MemberFlowEdge>();
+function ResetLayoutButton({ onReset }: { onReset: () => void }) {
+  const { fitView } = useReactFlow();
 
   return (
     <Panel position="top-center">
@@ -284,8 +380,8 @@ function ResetLayoutButton({ layoutNodes }: { layoutNodes: MemberFlowNode[] }) {
         size="sm"
         className="bg-background/90 text-xs shadow-sm backdrop-blur"
         onClick={() => {
-          setNodes(layoutNodes);
-          window.requestAnimationFrame(() => fitView({ padding: 0.2 }));
+          onReset();
+          window.requestAnimationFrame(() => fitView({ padding: 0.2, duration: 200 }));
         }}
       >
         ↺ Atur ulang posisi
@@ -294,15 +390,41 @@ function ResetLayoutButton({ layoutNodes }: { layoutNodes: MemberFlowNode[] }) {
   );
 }
 
+/** Auto-fit viewport setiap kali set kartu berubah (expand/collapse), kecuali render pertama. */
+function RefitOnChange({ signature }: { signature: string }) {
+  const { fitView } = useReactFlow();
+  const skipFirst = useRef(true);
+
+  useEffect(() => {
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
+    const id = window.requestAnimationFrame(() =>
+      fitView({ padding: 0.2, duration: 200, maxZoom: 1 }),
+    );
+    return () => window.cancelAnimationFrame(id);
+  }, [signature, fitView]);
+
+  return null;
+}
+
 /**
- * Ubah hasil layout menjadi `nodes`/`edges` untuk React Flow.
+ * Ubah subset anggota yang terlihat menjadi `nodes`/`edges` untuk React Flow.
  * - Orang tua → anak: garis siku (smoothstep) biru, dari handle bawah ke atas.
  * - Pasangan/saudara: garis horizontal putus-putus antar tepi kartu.
  */
-function buildFlow(tree: FamilyTree, onMakeRoot: (id: string) => void) {
-  const layout = layoutTree(tree);
+function buildFlow(
+  visible: FamilyTree,
+  full: FamilyTree,
+  onMakeRoot: (id: string) => void,
+  onToggle: (id: string) => void,
+  expanded: Set<string>,
+) {
+  const layout = layoutTree(visible);
+  const fullFamily = full.family;
 
-  const nodes: MemberFlowNode[] = Object.values(tree.family).map((m) => {
+  const nodes: MemberFlowNode[] = Object.values(visible.family).map((m) => {
     const p = layout.placed.get(m.id);
     if (!p) {
       throw new Error(`Member ${m.id} tidak punya posisi di layout pohon`);
@@ -313,7 +435,14 @@ function buildFlow(tree: FamilyTree, onMakeRoot: (id: string) => void) {
       position: { x: p.cx - CARD_W / 2, y: p.top },
       width: CARD_W,
       height: CARD_H,
-      data: { member: m, isRoot: m.id === tree.root_id, onMakeRoot },
+      data: {
+        member: m,
+        isRoot: m.id === visible.root_id,
+        isExpanded: expanded.has(m.id),
+        hiddenCount: hiddenRelatedCount(m, fullFamily, visible.family),
+        onMakeRoot,
+        onToggle,
+      },
     };
   });
 
@@ -366,9 +495,47 @@ export default function TreeView({
   tree: FamilyTree;
   onMakeRoot: (id: string) => void;
 }) {
-  const { nodes, edges, levelMeta } = useMemo(
-    () => buildFlow(tree, onMakeRoot),
-    [tree, onMakeRoot],
+  // Set anggota yang cabangnya sedang terbuka (default: tutup semua, root saja).
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  const handleToggle = useCallback((id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const visibleTree = useMemo(
+    () => computeVisible(tree, expanded),
+    [tree, expanded],
+  );
+
+  const built = useMemo(
+    () => buildFlow(visibleTree, tree, onMakeRoot, handleToggle, expanded),
+    [visibleTree, tree, onMakeRoot, handleToggle, expanded],
+  );
+  const { levelMeta } = built;
+
+  // Controlled: posisi hasil geser disimpan di state, dan set kartu bisa berubah.
+  const [nodes, setNodes, onNodesChange] = useNodesState<MemberFlowNode>(built.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<MemberFlowEdge>(built.edges);
+
+  useEffect(() => {
+    setNodes(built.nodes);
+    setEdges(built.edges);
+  }, [built, setNodes, setEdges]);
+
+  const handleResetLayout = useCallback(() => {
+    setNodes(built.nodes);
+    setEdges(built.edges);
+  }, [built, setNodes, setEdges]);
+
+  // Tanda tangan kartu yang terlihat — dipakai RefitOnChange untuk auto-fit.
+  const visibleKey = useMemo(
+    () => Object.keys(visibleTree.family).sort().join(","),
+    [visibleTree],
   );
 
   return (
@@ -386,10 +553,11 @@ export default function TreeView({
 
       <div className="h-[70vh] min-h-[460px] overflow-hidden rounded-xl border bg-background/60">
         <ReactFlow
-          key={tree.root_id ?? "tree"}
-          defaultNodes={nodes}
-          defaultEdges={edges}
+          nodes={nodes}
+          edges={edges}
           nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           colorMode="light"
           fitView
           fitViewOptions={{ padding: 0.2 }}
@@ -402,13 +570,14 @@ export default function TreeView({
         >
           <Background gap={16} size={1} />
           <Controls position="bottom-left" showInteractive={false} />
-          <ResetLayoutButton layoutNodes={nodes} />
+          <ResetLayoutButton onReset={handleResetLayout} />
+          <RefitOnChange signature={visibleKey} />
         </ReactFlow>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        💡 Seret kartu untuk menyusun ulang posisi · gulir untuk geser · Ctrl/⌘ + gulir (atau
-        pinch) untuk zoom · klik kartu untuk lihat detail.
+        💡 Klik kartu untuk membuka/menutup cabang · seret kartu untuk menyusun ulang posisi ·
+        gulir untuk geser · Ctrl/⌘ + gulir (atau pinch) untuk zoom · klik nama untuk lihat detail.
       </p>
 
       {/* Legenda generasi */}
