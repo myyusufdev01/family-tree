@@ -1,10 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, type CSSProperties } from "react";
+import {
+  Background,
+  Controls,
+  Handle,
+  MiniMap,
+  Panel,
+  Position,
+  ReactFlow,
+  useReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { Target } from "lucide-react";
 import type { FamilyTree, Member } from "@/lib/types";
 import { GENDER_ICONS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 // ── Konstanta layout ─────────────────────────────────────────────────────────
 const CARD_W = 168;
@@ -36,7 +52,7 @@ interface PlacedNode {
 
 type EdgeKind = "parent_child" | "spouse" | "sibling";
 
-interface Edge {
+interface LayoutEdge {
   from: string;
   to: string;
   kind: EdgeKind;
@@ -44,11 +60,28 @@ interface Edge {
 
 interface TreeLayout {
   placed: Map<string, PlacedNode>;
-  edges: Edge[];
+  edges: LayoutEdge[];
   levelMeta: { gen: number; label: string; count: number }[];
-  totalW: number;
-  totalH: number;
 }
+
+// ── Tipe & konstanta untuk React Flow ────────────────────────────────────────
+type MemberNodeData = {
+  member: Member;
+  isRoot: boolean;
+  onMakeRoot: (id: string) => void;
+};
+
+type MemberFlowNode = Node<MemberNodeData, "member">;
+type MemberFlowEdge = Edge & { kind: EdgeKind };
+
+const HANDLE_STYLE: CSSProperties = {
+  width: 0,
+  height: 0,
+  border: "none",
+  opacity: 0,
+  background: "transparent",
+  pointerEvents: "none",
+};
 
 /**
  * Susun pohon ke baris-baris generasi dan hitung posisi kartu.
@@ -139,7 +172,7 @@ function layoutTree(tree: FamilyTree): TreeLayout {
     });
   });
 
-  const edges: Edge[] = [];
+  const edges: LayoutEdge[] = [];
   const edgeKey = new Set<string>();
   for (const m of members) {
     // Orang tua → anak (garis "siku" vertikal).
@@ -172,32 +205,7 @@ function layoutTree(tree: FamilyTree): TreeLayout {
     }
   }
 
-  const totalH = orderedLevels.size * ROW_H + PAD * 2;
-  const totalW = Math.max(maxWidth + PAD * 2, 520);
-  return { placed, edges, levelMeta, totalW, totalH };
-}
-
-/** Path garis penghubung antar kartu. */
-function edgePath(from: PlacedNode, to: PlacedNode, kind: EdgeKind): string {
-  if (kind === "parent_child") {
-    // Garis "siku" dari bawah orang tua ke atas anak.
-    const x1 = from.cx;
-    const y1 = from.top + CARD_H;
-    const x2 = to.cx;
-    const y2 = to.top;
-    if (Math.abs(x1 - x2) < 1) {
-      return `M ${x1} ${y1} L ${x1} ${y2}`;
-    }
-    const midY = (y1 + y2) / 2;
-    return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
-  }
-  // Relasi sebaris (pasangan/saudara): garis horizontal antara tepi kartu.
-  const left = from.cx <= to.cx ? from : to;
-  const right = from.cx <= to.cx ? to : from;
-  const y = from.top + CARD_H / 2;
-  const x1 = left.cx + CARD_W / 2;
-  const x2 = right.cx - CARD_W / 2;
-  return `M ${x1} ${y} L ${x2} ${y}`;
+  return { placed, edges, levelMeta };
 }
 
 function yearOf(iso: string | null | undefined): string {
@@ -206,33 +214,27 @@ function yearOf(iso: string | null | undefined): string {
   return m ? m[1] : "";
 }
 
-function TreeCard({
-  member,
-  isRoot,
-  x,
-  y,
-  onMakeRoot,
-}: {
-  member: Member;
-  isRoot: boolean;
-  x: number;
-  y: number;
-  onMakeRoot: (id: string) => void;
-}) {
+/**
+ * Kartu anggota sebagai node React Flow. Posisi kartu ditentukan React Flow
+ * dari data node; di tepi kartu ada `Handle` tersembunyi sebagai titik sambung
+ * garis (atas/bawah untuk orang tua–anak, kiri/kanan untuk pasangan/saudara).
+ */
+function MemberCard({ data }: NodeProps<MemberFlowNode>) {
+  const { member, isRoot, onMakeRoot } = data;
   const birthYear = yearOf(member.birth_date);
   const deathYear = yearOf(member.death_date);
 
   return (
     <div
       className={cn(
-        "absolute flex flex-col rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/60",
+        "flex flex-col rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/60",
         isRoot && "border-primary/50 ring-2 ring-primary/30",
       )}
-      style={{ left: x, top: y, width: CARD_W, height: CARD_H }}
+      style={{ width: CARD_W, height: CARD_H }}
     >
       <Link
         href={`/members/${member.id}`}
-        className="flex min-w-0 items-center gap-1.5 text-sm font-medium hover:underline"
+        className="nodrag flex min-w-0 items-center gap-1.5 text-sm font-medium hover:underline"
         title={`Lihat detail ${member.name}`}
       >
         <span className="shrink-0">{GENDER_ICONS[member.gender]}</span>
@@ -254,13 +256,108 @@ function TreeCard({
           type="button"
           title="Jadikan pusat pohon"
           onClick={() => onMakeRoot(member.id)}
-          className="ml-auto rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="nodrag ml-auto rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Target className="size-3.5" />
         </button>
       </div>
+
+      {/* Handle tersembunyi — titik sambung garis antar kartu */}
+      <Handle type="target" position={Position.Top} id="top" style={HANDLE_STYLE} />
+      <Handle type="source" position={Position.Bottom} id="bottom" style={HANDLE_STYLE} />
+      <Handle type="source" position={Position.Right} id="right" style={HANDLE_STYLE} />
+      <Handle type="target" position={Position.Left} id="left" style={HANDLE_STYLE} />
     </div>
   );
+}
+
+const nodeTypes = { member: MemberCard };
+
+/** Tombol untuk mengembalikan kartu ke posisi layout otomatis setelah digeser. */
+function ResetLayoutButton({ layoutNodes }: { layoutNodes: MemberFlowNode[] }) {
+  const { setNodes, fitView } = useReactFlow<MemberFlowNode, MemberFlowEdge>();
+
+  return (
+    <Panel position="top-center">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="bg-background/90 text-xs shadow-sm backdrop-blur"
+        onClick={() => {
+          setNodes(layoutNodes);
+          window.requestAnimationFrame(() => fitView({ padding: 0.2 }));
+        }}
+      >
+        ↺ Atur ulang posisi
+      </Button>
+    </Panel>
+  );
+}
+
+/**
+ * Ubah hasil layout menjadi `nodes`/`edges` untuk React Flow.
+ * - Orang tua → anak: garis siku (smoothstep) biru, dari handle bawah ke atas.
+ * - Pasangan/saudara: garis horizontal putus-putus antar tepi kartu.
+ */
+function buildFlow(tree: FamilyTree, onMakeRoot: (id: string) => void) {
+  const layout = layoutTree(tree);
+
+  const nodes: MemberFlowNode[] = Object.values(tree.family).map((m) => {
+    const p = layout.placed.get(m.id);
+    if (!p) {
+      throw new Error(`Member ${m.id} tidak punya posisi di layout pohon`);
+    }
+    return {
+      id: m.id,
+      type: "member",
+      position: { x: p.cx - CARD_W / 2, y: p.top },
+      width: CARD_W,
+      height: CARD_H,
+      data: { member: m, isRoot: m.id === tree.root_id, onMakeRoot },
+    };
+  });
+
+  const edges: MemberFlowEdge[] = [];
+  layout.edges.forEach((e, i) => {
+    const a = layout.placed.get(e.from);
+    const b = layout.placed.get(e.to);
+    if (!a || !b) return;
+
+    if (e.kind === "parent_child") {
+      edges.push({
+        id: `edge-${i}`,
+        source: e.from,
+        target: e.to,
+        sourceHandle: "bottom",
+        targetHandle: "top",
+        type: "smoothstep",
+        kind: e.kind,
+        style: { stroke: "#0ea5e9", strokeWidth: 1.5 },
+      });
+      return;
+    }
+
+    const isSpouse = e.kind === "spouse";
+    const left = a.cx <= b.cx ? e.from : e.to;
+    const right = left === e.from ? e.to : e.from;
+    edges.push({
+      id: `edge-${i}`,
+      source: left,
+      target: right,
+      sourceHandle: "right",
+      targetHandle: "left",
+      type: "straight",
+      kind: e.kind,
+      style: {
+        stroke: isSpouse ? "#f43f5e" : "#10b981",
+        strokeWidth: isSpouse ? 2 : 1.5,
+        strokeDasharray: "4 4",
+      },
+    });
+  });
+
+  return { nodes, edges, levelMeta: layout.levelMeta };
 }
 
 export default function TreeView({
@@ -270,7 +367,10 @@ export default function TreeView({
   tree: FamilyTree;
   onMakeRoot: (id: string) => void;
 }) {
-  const layout = layoutTree(tree);
+  const { nodes, edges, levelMeta } = useMemo(
+    () => buildFlow(tree, onMakeRoot),
+    [tree, onMakeRoot],
+  );
 
   return (
     <div className="space-y-3">
@@ -278,65 +378,45 @@ export default function TreeView({
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           ⚠️ Pohon dibatasi menampilkan{" "}
           <strong>
-            {tree.total_nodes ?? layout.levelMeta.reduce((a, l) => a + l.count, 0)}
+            {tree.total_nodes ?? levelMeta.reduce((a, l) => a + l.count, 0)}
           </strong>{" "}
           anggota terdekat agar tetap ringan. Gunakan tombol <strong>🎯</strong> pada kartu untuk
           menjadikannya pusat pohon dan melihat cabang keluarganya.
         </p>
       )}
 
-      <div className="overflow-auto rounded-xl border bg-background/60 p-2">
-        <div className="relative" style={{ width: layout.totalW, height: layout.totalH }}>
-          {/* Garis penghubung */}
-          <svg
-            className="pointer-events-none absolute inset-0"
-            width={layout.totalW}
-            height={layout.totalH}
-            aria-hidden="true"
-          >
-            {layout.edges.map((e, i) => {
-              const from = layout.placed.get(e.from);
-              const to = layout.placed.get(e.to);
-              if (!from || !to) return null;
-              return (
-                <path
-                  key={i}
-                  d={edgePath(from, to, e.kind)}
-                  fill="none"
-                  strokeWidth={e.kind === "spouse" ? 2 : 1.5}
-                  strokeDasharray={e.kind === "parent_child" ? undefined : "4 4"}
-                  className={cn(
-                    e.kind === "parent_child" && "stroke-sky-500",
-                    e.kind === "spouse" && "stroke-rose-500",
-                    e.kind === "sibling" && "stroke-emerald-500",
-                  )}
-                />
-              );
-            })}
-          </svg>
-
-          {/* Kartu anggota */}
-          {Object.values(tree.family).map((m) => {
-            const p = layout.placed.get(m.id);
-            if (!p) return null;
-            return (
-              <TreeCard
-                key={m.id}
-                member={m}
-                isRoot={m.id === tree.root_id}
-                x={p.cx - CARD_W / 2}
-                y={p.top}
-                onMakeRoot={onMakeRoot}
-              />
-            );
-          })}
-        </div>
+      <div className="h-[70vh] min-h-[460px] overflow-hidden rounded-xl border bg-background/60">
+        <ReactFlow
+          key={tree.root_id ?? "tree"}
+          defaultNodes={nodes}
+          defaultEdges={edges}
+          nodeTypes={nodeTypes}
+          colorMode="light"
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.05}
+          maxZoom={2}
+          nodesConnectable={false}
+          panOnScroll
+          zoomOnScroll={false}
+          deleteKeyCode={null}
+        >
+          <Background gap={16} size={1} />
+          <Controls position="bottom-left" showInteractive={false} />
+          <MiniMap position="top-right" pannable zoomable nodeColor="#0ea5e9" />
+          <ResetLayoutButton layoutNodes={nodes} />
+        </ReactFlow>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        💡 Seret kartu untuk menyusun ulang posisi · gulir untuk geser · Ctrl/⌘ + gulir (atau
+        pinch) untuk zoom · klik kartu untuk lihat detail.
+      </p>
 
       {/* Legenda generasi */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="font-medium text-foreground">Baris generasi:</span>
-        {layout.levelMeta.map((l) => (
+        {levelMeta.map((l) => (
           <span
             key={l.gen}
             className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2 py-0.5"

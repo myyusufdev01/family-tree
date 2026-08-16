@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,10 +68,15 @@ export default function TreePageContent() {
     router.replace(`/tree?member=${m.id}`);
   }
 
-  function handleMakeRoot(id: string) {
-    router.replace(`/tree?member=${id}`);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+  // Stabil supaya `onMakeRoot` tidak berganti-ganti identity saat parent
+  // re-render (mencegah layout tree dihitung ulang secara tidak perlu).
+  const handleMakeRoot = useCallback(
+    (id: string) => {
+      router.replace(`/tree?member=${id}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [router],
+  );
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
