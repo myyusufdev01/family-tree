@@ -156,7 +156,7 @@ describe("POST /api/members", () => {
     expect(res.status).toBe(422);
   });
 
-  it("PIC menambah — anggota baru otomatis masuk semua group-nya", async () => {
+  it("PIC menambah — tanpa relasi otomatis, anggota baru masuk semua group-nya", async () => {
     const pic = member("pic");
     pic.is_pic = true;
     pic.group_ids = ["g1", "g2"];
@@ -164,12 +164,29 @@ describe("POST /api/members", () => {
 
     const res = await POST(jsonRequest({ name: "Anggota PIC" }));
     expect(res.status).toBe(200);
-    // Auto-group ke semua group PIC + relasi anak tetap otomatis.
+    // Auto-group ke semua group PIC, tapi tanpa auto-link anak/pasangan.
     expect(mocks.setMemberGroups).toHaveBeenCalledWith(0, "member-6", [
       "g1",
       "g2",
     ]);
-    expect(mocks.linkParentChild).toHaveBeenCalledWith(0, "pic", "member-6");
+    expect(mocks.linkParentChild).not.toHaveBeenCalled();
+    expect(mocks.linkSpouses).not.toHaveBeenCalled();
+  });
+
+  it("PIC menambah — relation ikut dikirim tetap tanpa auto-link", async () => {
+    const pic = member("pic");
+    pic.is_pic = true;
+    pic.group_ids = ["g1"];
+    setupCreate(pic, "member-6b");
+
+    const res = await POST(
+      jsonRequest({ name: "Anggota PIC", relation: "spouse" }),
+    );
+    expect(res.status).toBe(200);
+    // PIC mengabaikan field relation → tidak ada auto-link.
+    expect(mocks.setMemberGroups).toHaveBeenCalledWith(0, "member-6b", ["g1"]);
+    expect(mocks.linkParentChild).not.toHaveBeenCalled();
+    expect(mocks.linkSpouses).not.toHaveBeenCalled();
   });
 
   it("user biasa (bukan PIC) menambah — tanpa group otomatis", async () => {

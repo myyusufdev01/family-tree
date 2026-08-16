@@ -64,7 +64,7 @@ export default function AddMemberPage() {
       const member = await createMember({
         name: form.name.trim(),
         gender: form.gender,
-        ...(!isAdmin ? { relation: form.relation } : {}),
+        ...(!isAdmin && !isPic ? { relation: form.relation } : {}),
         birth_date: form.birth_date || null,
         death_date: form.death_date || null,
         phone: form.phone || null,
@@ -91,9 +91,9 @@ export default function AddMemberPage() {
               </>
             ) : isPic ? (
               <>
-                Anggota baru otomatis terhubung sebagai <b>anak</b> atau{" "}
-                <b>pasangan</b> dari akun Anda, dan otomatis{" "}
-                <b>masuk ke group Anda</b> (status PIC).
+                Anggota baru akan otomatis <b>masuk ke group Anda</b> (status
+                PIC) dan dibuat <b>tanpa relasi otomatis</b> dengan Anda.
+                Hubungkan relasinya lewat halaman edit bila perlu.
               </>
             ) : (
               <>
@@ -134,7 +134,7 @@ export default function AddMemberPage() {
               </Select>
             </div>
 
-            {me !== null && !isAdmin && (
+            {me !== null && !isAdmin && !isPic && (
               <div className="space-y-2">
                 <Label>Hubungan dengan Anda</Label>
                 <Select

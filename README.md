@@ -132,10 +132,11 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
    field **"User ID"**.
 5. **Menambah anggota**: hanya user yang akunnya sudah tertaut yang boleh menambah anggota
    (`POST /api/members`). User belum tertaut mendapat **403**. Anggota baru otomatis
-   terhubung ke user penambah (non-admin) sebagai **anak** (default) atau **pasangan**
-   (field `relation`). **Admin tidak perlu memilih** — anggota yang ditambah admin dibuat
-   tanpa relasi otomatis (bisa dihubungkan manual lewat halaman edit). Tombol "Tambah
-   Anggota" di UI hanya tampil untuk user yang berhak.
+   terhubung ke user penambah (non-admin, non-PIC) sebagai **anak** (default) atau **pasangan**
+   (field `relation`). **Admin & PIC tidak perlu memilih** — anggota yang ditambah dibuat
+   tanpa relasi otomatis (bisa dihubungkan manual lewat halaman edit). Khusus **PIC**, anggota
+   baru otomatis masuk ke semua group-nya. Tombol "Tambah Anggota" di UI hanya tampil untuk
+   user yang berhak.
 
 ## 🔌 API Backend
 

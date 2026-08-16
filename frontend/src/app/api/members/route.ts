@@ -61,10 +61,12 @@ export async function GET(req: NextRequest) {
  * POST /api/members — tambah anggota baru.
  *
  * Aturan akses:
- * - Non-admin: wajib akun Auth0 sudah tertaut ke anggota silsilah
+ * - Non-admin (bukan PIC): wajib akun Auth0 sudah tertaut ke anggota silsilah
  *   (`auth0_sub`), dan anggota baru otomatis terhubung sebagai **anak**
  *   (`relation=child`, default) atau **pasangan** (`relation=spouse`)
  *   dari anggota yang mewakilinya.
+ * - PIC: menambah anggota **tanpa relasi otomatis** (tidak perlu memilih
+ *   anak/pasangan) — anggota baru otomatis masuk ke semua group-nya.
  * - Admin (`ADMIN_SUBS`): menambah anggota **tanpa relasi otomatis**
  *   (tidak perlu memilih anak/pasangan) — bisa untuk setup awal maupun
  *   anggota berdiri sendiri.
@@ -112,16 +114,18 @@ export async function POST(req: NextRequest) {
 
     let created = await addMember(userId, member);
 
-    // Non-admin (sudah pasti tertaut): auto-link anak/pasangan.
-    // Admin: tanpa relasi otomatis.
+    // Auto-link anak/pasangan hanya untuk user tertaut biasa (bukan PIC/bukan
+    // admin). PIC & admin menambah tanpa relasi otomatis.
     if (!admin) {
       const me = await getMemberBySub(userId, user.sub);
       if (me) {
-        // PIC: anggota baru otomatis masuk ke semua group-nya.
-        if (me.is_pic && me.group_ids.length > 0) {
-          await setMemberGroups(userId, created.id, me.group_ids);
-        }
-        if (relation === "spouse") {
+        if (me.is_pic) {
+          // PIC: tanpa relasi otomatis, anggota baru otomatis masuk ke semua
+          // group-nya (relasi bisa dihubungkan manual lewat halaman edit).
+          if (me.group_ids.length > 0) {
+            await setMemberGroups(userId, created.id, me.group_ids);
+          }
+        } else if (relation === "spouse") {
           await linkSpouses(userId, me.id, created.id);
         } else {
           await linkParentChild(userId, me.id, created.id);
