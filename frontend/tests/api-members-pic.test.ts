@@ -25,7 +25,11 @@ import { PUT } from "@/app/api/members/[id]/pic/route";
 
 const TEST_SUB = "google-oauth2|admin";
 
-function member(mid: string, isPic = false): Member {
+function member(
+  mid: string,
+  isPic = false,
+  auth0Sub: string | null = "google-oauth2|" + mid,
+): Member {
   return {
     id: mid,
     name: mid,
@@ -39,7 +43,7 @@ function member(mid: string, isPic = false): Member {
     child_ids: [],
     sibling_ids: [],
     created_at: null,
-    auth0_sub: "google-oauth2|" + mid,
+    auth0_sub: auth0Sub,
     group_ids: [],
     is_pic: isPic,
   };
@@ -127,6 +131,34 @@ describe("PUT /api/members/{id}/pic", () => {
   it("admin membatalkan status PIC", async () => {
     mocks.isAdmin.mockReturnValue(true);
     const target = member("anak", true);
+    setupTarget(target);
+
+    const res = await PUT(jsonRequest("anak", { is_pic: false }), {
+      params: Promise.resolve({ id: "anak" }),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).is_pic).toBe(false);
+    expect(mocks.setMemberPic).toHaveBeenCalledWith(0, "anak", false);
+  });
+
+  it("menjadikan PIC tanpa tautan User ID ditolak 422", async () => {
+    mocks.isAdmin.mockReturnValue(true);
+    // auth0_sub null → belum ditautkan ke akun Auth0 mana pun.
+    const target = member("anak", false, null);
+    setupTarget(target);
+
+    const res = await PUT(jsonRequest("anak", { is_pic: true }), {
+      params: Promise.resolve({ id: "anak" }),
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.detail.toLowerCase()).toContain("user id");
+    expect(mocks.setMemberPic).not.toHaveBeenCalled();
+  });
+
+  it("membatalkan PIC tetap boleh walau tanpa tautan User ID", async () => {
+    mocks.isAdmin.mockReturnValue(true);
+    const target = member("anak", true, null);
     setupTarget(target);
 
     const res = await PUT(jsonRequest("anak", { is_pic: false }), {

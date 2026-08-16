@@ -13,6 +13,8 @@ export const runtime = "nodejs";
  * Body: `{ "is_pic": true }`.
  * - PIC bisa menambah anggota baru (otomatis masuk ke group-nya) dan membuat
  *   koneksi antar user di group yang sama.
+ * - Syarat menjadi PIC: anggota harus sudah memiliki tautan User ID (Auth0
+ *   `auth0_sub`). Membatalkan PIC tetap boleh walau tanpa tautan.
  */
 export async function PUT(
   req: NextRequest,
@@ -33,6 +35,13 @@ export async function PUT(
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     if (typeof body.is_pic !== "boolean") {
       throw new HttpError(422, "is_pic wajib berupa boolean");
+    }
+
+    if (body.is_pic && !target.auth0_sub) {
+      throw new HttpError(
+        422,
+        "Anggota belum memiliki tautan User ID (Auth0). Tautkan akun terlebih dahulu sebelum dijadikan PIC.",
+      );
     }
 
     await setMemberPic(userId, id, body.is_pic);

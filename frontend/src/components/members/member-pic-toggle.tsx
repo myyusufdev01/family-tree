@@ -74,6 +74,10 @@ export default function MemberPicToggle({
     }
   }
 
+  // Syarat menjadi PIC: akun sudah tertaut ke User ID (auth0_sub). Membatalkan
+  // PIC tetap diizinkan meski tanpa tautan (mis. perbaikan data lama).
+  const canEnablePic = Boolean(member.auth0_sub);
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3">
@@ -82,7 +86,12 @@ export default function MemberPicToggle({
           size="sm"
           variant={isPic ? "default" : "outline"}
           onClick={handleToggle}
-          disabled={saving}
+          disabled={saving || (!isPic && !canEnablePic)}
+          title={
+            !isPic && !canEnablePic
+              ? "Anggota ini belum memiliki tautan User ID (Auth0)"
+              : undefined
+          }
         >
           {saving ? "Menyimpan..." : isPic ? "⭐ Batalkan PIC" : "⭐ Jadikan PIC"}
         </Button>
@@ -90,6 +99,12 @@ export default function MemberPicToggle({
           {isPic ? "User ini berstatus PIC." : "User ini bukan PIC."}
         </span>
       </div>
+      {!canEnablePic && !isPic && (
+        <p className="text-xs text-amber-600">
+          ⚠️ Anggota ini belum memiliki tautan User ID (Auth0). Tautkan akun di
+          bagian atas terlebih dahulu sebelum dijadikan PIC.
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         PIC dapat menambah anggota baru (otomatis masuk ke group-nya) dan
         membuat koneksi antar user di group yang sama.
