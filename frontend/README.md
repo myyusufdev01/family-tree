@@ -1,14 +1,19 @@
 # 🌳 Family Tree — Frontend
 
-Frontend web untuk aplikasi silsilah keluarga, dibangun dengan **Next.js 16** (App Router + Turbopack), **React 19**, **Tailwind CSS 4**, dan **shadcn/ui**.
+Frontend web untuk aplikasi silsilah keluarga, dibangun dengan **Next.js 16**
+(App Router + Turbopack), **React 19**, **Tailwind CSS 4**, dan **shadcn/ui**.
+
+Aplikasi **sudah terpadu** — API (Route Handlers) dan akses Firestore ada di
+project yang sama, tidak ada lagi backend Python terpisah.
 
 ## Struktur
 
 ```
 src/
-├── app/          # Halaman: / (dashboard), /members/add, /members/[id], /members/[id]/edit
+├── app/          # Halaman: / (dashboard), /members/..., /tree
+│   └── api/      # Route Handlers — endpoint API (/api/health, /api/members, ...)
 ├── components/   # Komponen UI (shadcn/ui)
-└── lib/          # API client (api.ts), types, util
+└── lib/          # API client (api.ts), types, Firestore, auth, stats, tree
 ```
 
 ## Menjalankan
@@ -18,6 +23,7 @@ npm install
 npm run dev
 ```
 
-Buka http://localhost:3000. Frontend mengakses backend melalui env `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`) — lihat `.env.local`.
+Buka http://localhost:3000. Env yang dibutuhkan ada di `.env.local`
+(contoh: `.env.example` di root repo). Jalankan test dengan `npm test`.
 
-> Untuk menjalankan **seluruh aplikasi** (backend + frontend), lihat README utama di root project: `../README.md`.
+> Untuk dokumentasi lengkap aplikasi, lihat README utama di root project: `../README.md`.

@@ -1,3 +1,0 @@
-# Dependensi tambahan untuk pengembangan & testing (tidak dipakai di produksi).
-pytest==9.1.1
-httpx==0.27.2

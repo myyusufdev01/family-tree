@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Build mandiri (server.js) untuk dijalankan sebagai satu service di
+  // Docker/Cloud Run — melayani UI + API sekaligus.
+  output: "standalone",
 };
 
 export default nextConfig;
+

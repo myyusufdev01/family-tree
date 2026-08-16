@@ -6,32 +6,24 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 
 | Bagian    | Teknologi                                                                 |
 |-----------|---------------------------------------------------------------------------|
-| Frontend  | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, shadcn/ui   |
-| Backend   | Python FastAPI, Pydantic, Uvicorn                                         |
-| Database  | Firebase Firestore (Cloud Firestore)                                      |
-| Autentikasi | Auth0 — Universal Login (SPA SDK) + verifikasi token via `/userinfo`   |
+| Aplikasi  | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, shadcn/ui   |
+| Backend   | Route Handlers Next.js (TypeScript) — satu project dengan UI              |
+| Database  | Firebase Firestore (Cloud Firestore) via `@google-cloud/firestore`        |
+| Autentikasi | Auth0 — Universal Login (SPA SDK) + verifikasi token via `/userinfo`    |
 | Deploy    | Google Cloud Run (Docker) — manual (`deploy.sh`) atau CI GitHub Actions   |
 
 ## 📁 Struktur Project
 
 ```
 .
-├── backend/                  # REST API (FastAPI)
-│   ├── main.py               # Definisi app & semua endpoint
-│   ├── config.py             # Konfigurasi env (Firestore, token)
-│   ├── models/member.py      # Model data Member
-│   ├── db/firestore.py       # Akses Firestore (CRUD, relasi, admin)
-│   ├── utils/tree_renderer.py# Helper render pohon keluarga
-│   ├── requirements.txt      # Dependensi Python
-│   └── .env                  # Kredensial lokal (tidak di-commit)
-├── frontend/                 # Web UI (Next.js 16)
+├── frontend/                  # Aplikasi Next.js (UI + API + akses Firestore)
 │   └── src/
-│       ├── app/              # Halaman: dashboard, tambah/edit, detail + silsilah, pohon keluarga
-│       ├── components/       # Komponen UI (shadcn/ui) & tree view
-│       └── lib/              # API client, types, util
-├── dev.sh                    # Jalankan backend + frontend sekaligus di local
-├── Dockerfile                # Build image backend untuk Cloud Run
-└── deploy.sh                 # Deploy manual ke Google Cloud Run
+│       ├── app/               # Halaman + Route Handlers API (app/api/**)
+│       ├── components/        # Komponen UI (shadcn/ui) & tree view
+│       └── lib/               # API client, types, Firestore, auth, stats, tree
+├── dev.sh                     # Jalankan aplikasi di local (satu proses)
+├── Dockerfile                 # Build image Next.js (standalone) untuk Cloud Run
+└── deploy.sh                  # Deploy manual ke Google Cloud Run
 ```
 
 ## ✅ Fitur
@@ -51,58 +43,38 @@ Aplikasi web untuk mengelola **silsilah keluarga** — menambah & mengedit anggo
 
 ### Prasyarat
 
-- Python 3.11+ dan Node.js 20+
-- Kredensial service account Firebase (`backend/serviceAccountKey.json`) dan Project ID Firestore yang aktif
+- Node.js 20+
+- Kredensial service account Firebase (`frontend/serviceAccountKey.json`) dan Project ID Firestore yang aktif
 
 ### 1. Setup environment
 
 ```bash
-# Backend — salin dari contoh lalu isi sesuai project Firestore-mu
-cp backend/.env.example backend/.env
-# Letakkan serviceAccountKey.json di folder backend/
-
-# Frontend — buat file .env.local dengan URL backend
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > frontend/.env.local
+cp .env.example frontend/.env.local
+# Lalu isi FIRESTORE_PROJECT_ID, AUTH0_DOMAIN, ADMIN_SUBS, dan
+# letakkan serviceAccountKey.json di folder frontend/
 ```
 
 ### 2. Install dependensi
 
 ```bash
-cd backend
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt
-cd ../frontend
+cd frontend
 npm install
-cd ..
 ```
 
 ### 3. Jalankan
 
-Cara termudah — menjalankan backend & frontend sekaligus (bisa diberhentikan dengan `Ctrl+C`):
-
 ```bash
 ./dev.sh
+# atau: cd frontend && npm run dev
 ```
 
-Atau manual (buka **2 terminal**):
-
-```bash
-# Terminal 1 — Backend di http://localhost:8000
-cd backend
-venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-# Terminal 2 — Frontend di http://localhost:3000
-cd frontend
-npm run dev
-```
-
-Lalu buka **http://localhost:3000**. Dokumentasi API backend (Swagger UI) tersedia di **http://localhost:8000/docs**, health check di `/health`.
+Buka **http://localhost:3000**. Health check API tersedia di **http://localhost:3000/api/health**.
 
 ## 🔐 Autentikasi Auth0
 
 Semua halaman & API dilindungi login Auth0. Pendekatan: **SPA tanpa audience** —
-tidak perlu membuat API di Auth0. Access token (opaque) diverifikasi backend
-dengan memanggil endpoint `/userinfo` Auth0.
+tidak perlu membuat API di Auth0. Access token (opaque) diverifikasi server
+(Route Handler) dengan memanggil endpoint `/userinfo` Auth0.
 
 ### 1. Setup di Auth0 Dashboard
 
@@ -113,14 +85,14 @@ dengan memanggil endpoint `/userinfo` Auth0.
    - **Allowed Web Origins**   : `http://localhost:3000,https://your-app.example.com`
 3. **Tidak perlu membuat API** di Auth0 — karena token diverifikasi via `/userinfo`, audience/API tidak dipakai.
 
-### 2. Variabel environment
+### 2. Variabel environment (`frontend/.env.local`)
 
 ```bash
-# backend/.env
+# Server-only (tidak pernah terkirim ke browser)
 AUTH0_DOMAIN=your-tenant.auth0.com          # dari Auth0 Dashboard
 ADMIN_SUBS=                                 # Auth0 user ID (sub) admin, dipisah koma
 
-# frontend/.env.local
+# Public (di-inline ke bundle browser)
 NEXT_PUBLIC_AUTH0_DOMAIN=your-tenant.auth0.com
 NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
 ```
@@ -128,9 +100,9 @@ NEXT_PUBLIC_AUTH0_CLIENT_ID=your_client_id
 ### 3. Cara kerja
 
 - Frontend memakai `@auth0/auth0-react` (Universal Login). Setelah login, access token
-  dikirim ke backend sebagai header `Authorization: Bearer <token>` untuk setiap request.
-- Backend memverifikasi token dengan memanggil `GET https://{domain}/userinfo`
-  (hasil di-cache 5 menit per token) lewat `backend/auth/auth0.py` — semua endpoint
+  dikirim ke API sebagai header `Authorization: Bearer <token>` untuk setiap request.
+- Route Handler memverifikasi token dengan memanggil `GET https://{domain}/userinfo`
+  (hasil di-cache 5 menit per token) lewat `src/lib/auth.ts` — semua endpoint
   `/api/*` kecuali `/health` memerlukan token valid (HTTP 401 bila tidak ada/tidak valid).
 - Akses admin ditentukan dari nilai `sub` (User ID Auth0) dibandingkan dengan `ADMIN_SUBS`.
   Cara melihat `sub`: Auth0 Dashboard → **User Management → Users** → klik user → salin
@@ -161,7 +133,7 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
 
 | Method | Endpoint                        | Deskripsi                                  |
 |--------|---------------------------------|--------------------------------------------|
-| GET    | `/health`                       | Health check                               |
+| GET    | `/api/health`                   | Health check                               |
 | GET    | `/api/members`                  | Daftar anggota (paginated)                 |
 | GET    | `/api/members/search?q=`        | Cari anggota berdasarkan nama              |
 | POST   | `/api/members`                  | Tambah anggota                             |
@@ -177,16 +149,27 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
 | POST   | `/api/admin/users`              | Approve user (admin)                       |
 | DELETE | `/api/admin/users/{id}`         | Revoke user (admin)                        |
 | GET    | `/api/admin/stats`              | Statistik aplikasi (admin)                 |
+| GET    | `/api/dashboard/stats`          | Statistik dashboard                        |
 
-> Semua endpoint (kecuali `/health`) memerlukan header `Authorization: Bearer <token>` dari Auth0.
+> Semua endpoint (kecuali `/api/health`) memerlukan header `Authorization: Bearer <token>` dari Auth0.
 > Query parameter `user_id` tetap diterima (default `0` = pohon bersama keluarga).
+
+## 🧪 Testing
+
+```bash
+cd frontend
+npm test
+```
 
 ## ☁️ Deploy ke Google Cloud Run
 
 - **Otomatis** — push ke branch `main` memicu workflow GitHub Actions (`.github/workflows/deploy.yml`).
-- **Manual** — jalankan `./deploy.sh` (membutuhkan `gcloud` dan env var `TELEGRAM_BOT_TOKEN`).
+  Secret yang dibutuhkan: `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, `NEXT_PUBLIC_AUTH0_DOMAIN`,
+  `NEXT_PUBLIC_AUTH0_CLIENT_ID`, `AUTH0_DOMAIN`, `ADMIN_SUBS`.
+- **Manual** — jalankan `./deploy.sh` (membutuhkan `gcloud`; nilai env dibaca dari `frontend/.env.local`).
 
 ## 🧬 Riwayat
 
-- **v2 (saat ini)** — Migrasi dari Telegram bot ke web app Next.js + FastAPI (commit `440f7ae`).
+- **v3 (saat ini)** — Penyatuan backend ke Next.js (Route Handlers + `@google-cloud/firestore`); backend Python/FastAPI dihapus.
+- **v2** — Migrasi dari Telegram bot ke web app Next.js + FastAPI (commit `440f7ae`).
 - **v1** — Bot Telegram (`python-telegram-bot`) + Firestore — kode lama tidak dipakai lagi.

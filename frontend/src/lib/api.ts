@@ -4,7 +4,9 @@ import type {
 } from "./types";
 import { getValidAccessToken, refreshAccessToken } from "./auth-token";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// API kini berada dalam proses Next.js yang sama (Route Handlers di
+// `src/app/api/**`) — request relatif, tidak perlu lagi NEXT_PUBLIC_API_URL.
+const API_BASE = "";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return requestWithRetry<T>(path, options, false);
