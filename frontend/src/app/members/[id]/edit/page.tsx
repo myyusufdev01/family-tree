@@ -238,9 +238,9 @@ return (
           <CardTitle>➕ Tambah Relasi Baru</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select value={relRole} onValueChange={(v) => setRelRole(v as "parent" | "child" | "spouse")}>
-              <SelectTrigger className="w-44"><SelectValue>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue>
                 {(v) => REL_ROLE_LABELS[(v ?? "parent") as "parent" | "child" | "spouse"]}
               </SelectValue></SelectTrigger>
               <SelectContent>
@@ -251,7 +251,7 @@ return (
               </SelectContent>
             </Select>
             <Input placeholder="Cari..." value={relSearch} onChange={(e) => setRelSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRelSearch()} />
-            <Button variant="secondary" onClick={handleRelSearch}>🔍 Cari</Button>
+            <Button variant="secondary" className="w-full sm:w-auto" onClick={handleRelSearch}>🔍 Cari</Button>
           </div>
           {relResults.length > 0 && (
             <div className="border rounded-lg p-3 space-y-2">
