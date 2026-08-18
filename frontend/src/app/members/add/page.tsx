@@ -195,34 +195,34 @@ export default function AddMemberPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {isAdmin ? (
-              <>
-                Anda (admin) menambah anggota <b>tanpa relasi otomatis</b>.
-                Hubungkan relasinya lewat bagian <b>Tambah Relasi Baru</b> di
-                bawah (opsional) atau halaman edit.
-              </>
-            ) : isPic ? (
-              <>
-                Anggota baru akan otomatis <b>masuk ke group Anda</b> (status
-                PIC) dan dibuat <b>tanpa relasi otomatis</b> dengan Anda.
-                Hubungkan relasinya lewat bagian <b>Tambah Relasi Baru</b> di
-                bawah (opsional) atau halaman edit.
-              </>
-            ) : (
-              <>
-                Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
-                <b>pasangan</b> dari akun Anda di silsilah.
-              </>
-            )}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-xl mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>➕ Tambah Anggota Keluarga</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {isAdmin ? (
+                <>
+                  Anda (admin) menambah anggota <b>tanpa relasi otomatis</b>.
+                  Hubungkan relasinya lewat bagian <b>Tambah Relasi Baru</b> di
+                  bawah (opsional) atau halaman edit.
+                </>
+              ) : isPic ? (
+                <>
+                  Anggota baru akan otomatis <b>masuk ke group Anda</b> (status
+                  PIC) dan dibuat <b>tanpa relasi otomatis</b> dengan Anda.
+                  Hubungkan relasinya lewat bagian <b>Tambah Relasi Baru</b> di
+                  bawah (opsional) atau halaman edit.
+                </>
+              ) : (
+                <>
+                  Anggota baru akan otomatis terhubung sebagai <b>anak</b> atau{" "}
+                  <b>pasangan</b> dari akun Anda di silsilah.
+                </>
+              )}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nama Lengkap *</Label>
               <Input
@@ -313,156 +313,162 @@ export default function AddMemberPage() {
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button type="submit" disabled={loading || !form.name.trim()}>
-                {loading ? "Menyimpan..." : "💾 Simpan"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/")}
-              >
-                ❌ Batal
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Group User — khusus admin (opsional). */}
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>👥 Group User</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Opsional — pilih group tempat anggota baru terdaftar. Diterapkan
-              saat menyimpan.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {groupsLoading ? (
-              <Skeleton className="h-10 w-full" />
-            ) : groups.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Belum ada group. Admin dapat membuat group di halaman{" "}
-                <b>Group</b>.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {groups.map((g) => {
-                  const active = selectedGroups.has(g.id);
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => toggleGroup(g.id)}
-                      aria-pressed={active}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-sm transition-colors",
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-accent",
-                      )}
-                    >
-                      {g.code} · {g.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {selectedGroups.size > 0 && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                {selectedGroups.size} group dipilih.
-              </p>
-            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Tambah Relasi Baru — khusus admin/PIC (opsional). */}
-      {canPickAnyRelation && (
-        <Card>
-          <CardHeader>
-            <CardTitle>➕ Tambah Relasi Baru</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Opsional — hubungkan anggota baru dengan anggota yang sudah ada.
-              Relasi dipasang setelah anggota tersimpan.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select
-                value={relRole}
-                onValueChange={(v) => setRelRole(v as AddRelRole)}
-              >
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue>
-                    {(v) => REL_ROLE_LABELS[(v ?? "parent") as AddRelRole]}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ADD_REL_ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {REL_ROLE_LABELS[r]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                placeholder="Cari anggota..."
-                value={relSearch}
-                onChange={(e) => setRelSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleRelSearch()}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={handleRelSearch}
-              >
-                🔍 Cari
-              </Button>
-            </div>
-
-            {relResults.length > 0 && (
-              <div className="border rounded-lg p-3 space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Hasil pencarian:
+        {/* Group User — khusus admin (opsional). */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>👥 Group User</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Opsional — pilih group tempat anggota baru terdaftar. Diterapkan
+                saat menyimpan.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {groupsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : groups.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Belum ada group. Admin dapat membuat group di halaman{" "}
+                  <b>Group</b>.
                 </p>
-                {relResults.map((m) => {
-                  const selected = relTarget?.id === m.id;
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between py-1"
-                    >
-                      <span>
-                        {m.gender === "male" ? "👨" : "👩"} {m.name}
-                      </span>
-                      <Button
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {groups.map((g) => {
+                    const active = selectedGroups.has(g.id);
+                    return (
+                      <button
+                        key={g.id}
                         type="button"
-                        size="sm"
-                        variant={selected ? "default" : "secondary"}
-                        onClick={() => setRelTarget(selected ? null : m)}
+                        onClick={() => toggleGroup(g.id)}
+                        aria-pressed={active}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-sm transition-colors",
+                          active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-accent",
+                        )}
                       >
-                        {selected ? "✓ Terpilih" : "Pilih"}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        {g.code} · {g.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedGroups.size > 0 && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {selectedGroups.size} group dipilih.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-            {relTarget && (
+        {/* Tambah Relasi Baru — khusus admin/PIC (opsional). */}
+        {canPickAnyRelation && (
+          <Card>
+            <CardHeader>
+              <CardTitle>➕ Tambah Relasi Baru</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Akan dihubungkan sebagai{" "}
-                <b>{REL_ROLE_LABELS[relRole].replace("...", "")}</b>{" "}
-                <b>{relTarget.name}</b>
+                Opsional — hubungkan anggota baru dengan anggota yang sudah ada.
+                Relasi dipasang setelah anggota tersimpan.
               </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select
+                  value={relRole}
+                  onValueChange={(v) => setRelRole(v as AddRelRole)}
+                >
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue>
+                      {(v) => REL_ROLE_LABELS[(v ?? "parent") as AddRelRole]}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ADD_REL_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {REL_ROLE_LABELS[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Cari anggota..."
+                  value={relSearch}
+                  onChange={(e) => setRelSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleRelSearch();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={handleRelSearch}
+                >
+                  🔍 Cari
+                </Button>
+              </div>
+
+              {relResults.length > 0 && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Hasil pencarian:
+                  </p>
+                  {relResults.map((m) => {
+                    const selected = relTarget?.id === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between py-1"
+                      >
+                        <span>
+                          {m.gender === "male" ? "👨" : "👩"} {m.name}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selected ? "default" : "secondary"}
+                          onClick={() => setRelTarget(selected ? null : m)}
+                        >
+                          {selected ? "✓ Terpilih" : "Pilih"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {relTarget && (
+                <p className="text-sm text-muted-foreground">
+                  Akan dihubungkan sebagai{" "}
+                  <b>{REL_ROLE_LABELS[relRole].replace("...", "")}</b>{" "}
+                  <b>{relTarget.name}</b>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          <Button type="submit" disabled={loading || !form.name.trim()}>
+            {loading ? "Menyimpan..." : "💾 Simpan"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/")}
+          >
+            ❌ Batal
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
