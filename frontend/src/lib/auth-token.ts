@@ -11,6 +11,8 @@ type TokenRefreshFn = () => Promise<string | null>;
 
 let accessToken: string | null = null;
 let refreshFn: TokenRefreshFn | null = null;
+/** Dipanggil saat refresh token gagal — hampir selalu berarti sesi sudah berakhir. */
+let onSessionExpired: (() => void) | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -18,6 +20,11 @@ export function setAccessToken(token: string | null): void {
 
 export function setTokenRefreshFn(fn: TokenRefreshFn | null): void {
   refreshFn = fn;
+}
+
+/** Daftarkan callback yang dipanggil ketika refresh token gagal. */
+export function setSessionExpiredHandler(fn: (() => void) | null): void {
+  onSessionExpired = fn;
 }
 
 /** Cek apakah JWT sudah kedaluwarsa berdasarkan klaim `exp` (tanpa verifikasi). */
@@ -49,7 +56,17 @@ export async function getValidAccessToken(): Promise<string | null> {
  */
 export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshFn) return accessToken;
-  const fresh = await refreshFn();
-  if (fresh) accessToken = fresh;
-  return fresh;
+  try {
+    const fresh = await refreshFn();
+    if (fresh) accessToken = fresh;
+    return fresh;
+  } catch {
+    // Refresh gagal (mis. refresh token sudah kedaluwarsa/`invalid_grant`).
+    // Jika sebelumnya ada token, berarti sesi dianggap sudah tidak valid.
+    if (accessToken) {
+      accessToken = null;
+      onSessionExpired?.();
+    }
+    return null;
+  }
 }

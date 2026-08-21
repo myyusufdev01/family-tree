@@ -17,7 +17,7 @@ function LoadingScreen() {
   );
 }
 
-function LoginScreen() {
+function LoginScreen({ notice }: { notice?: string }) {
   const { loginWithRedirect, error } = useAuth0();
 
   return (
@@ -28,6 +28,11 @@ function LoginScreen() {
         <p className="text-sm text-muted-foreground">
           Masuk untuk mengelola silsilah keluarga Anda.
         </p>
+        {notice ? (
+          <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            {notice}
+          </div>
+        ) : null}
         {error ? (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error.message}
@@ -57,14 +62,18 @@ function LoginScreen() {
 }
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
-  const { isReady, isAuthenticated, tokenReady } = useAuth();
+  const { isReady, isAuthenticated, tokenReady, sessionExpired } = useAuth();
 
-  if (!isReady || (isAuthenticated && !tokenReady)) {
+  if (!isReady || (isAuthenticated && !tokenReady && !sessionExpired)) {
     return <LoadingScreen />;
   }
 
-  if (!isAuthenticated) {
-    return <LoginScreen />;
+  if (!isAuthenticated || sessionExpired) {
+    return (
+      <LoginScreen
+        notice={sessionExpired ? "Sesi Anda telah berakhir. Silakan masuk kembali." : undefined}
+      />
+    );
   }
 
   return <>{children}</>;

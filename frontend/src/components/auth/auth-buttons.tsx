@@ -4,6 +4,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/providers";
 
 function initials(name?: string): string {
   if (!name) return "?";
@@ -16,15 +17,20 @@ function initials(name?: string): string {
 }
 
 export default function AuthButtons() {
-  const { isAuthenticated, isLoading, user, loginWithRedirect, logout } =
-    useAuth0();
+  const { isLoading, loginWithRedirect, logout } = useAuth0();
+  // Pakai status efektif dari context: saat sesi berakhir (`sessionExpired`),
+  // pengguna harus diperlakukan seperti belum login walau SDK masih melaporkan
+  // `isAuthenticated: true` dari cache lokal yang usang.
+  const { isAuthenticated, sessionExpired, user } = useAuth();
   const pathname = usePathname();
+
+  const loggedIn = isAuthenticated && !sessionExpired;
 
   if (isLoading) {
     return <Skeleton className="h-8 w-24 rounded-md" />;
   }
 
-  if (!isAuthenticated) {
+  if (!loggedIn) {
     return (
       <Button
         size="sm"

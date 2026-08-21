@@ -11,10 +11,21 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { Auth0Provider, useAuth0, type User } from "@auth0/auth0-react";
-import { setAccessToken, setTokenRefreshFn } from "@/lib/auth-token";
+import {
+  setAccessToken,
+  setTokenRefreshFn,
+  setSessionExpiredHandler,
+} from "@/lib/auth-token";
 
 const AUTH0_DOMAIN = process.env.NEXT_PUBLIC_AUTH0_DOMAIN ?? "";
 const AUTH0_CLIENT_ID = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID ?? "";
+
+/**
+ * Batas waktu menunggu access token. Refresh token yang sudah kedaluwarsa
+ * biasanya gagal cepat (`invalid_grant`), tapi silent auth (iframe) kadang
+ * menggantung tanpa balasan — timeout ini mencegah layar loading selamanya.
+ */
+const TOKEN_FETCH_TIMEOUT_MS = 10_000;
 
 export const auth0Configured = Boolean(AUTH0_DOMAIN && AUTH0_CLIENT_ID);
 
@@ -24,6 +35,11 @@ interface AuthContextValue {
   isReady: boolean;
   /** Access token sudah tersedia untuk dipakai API (bila sudah login). */
   tokenReady: boolean;
+  /**
+   * Sesi sudah berakhir — token tidak bisa diperbarui (refresh token
+   * kedaluwarsa atau silent auth gagal). Pengguna dianggap belum login.
+   */
+  sessionExpired: boolean;
   user: User | undefined;
   error: string | null;
 }
@@ -32,6 +48,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   isReady: false,
   tokenReady: false,
+  sessionExpired: false,
   user: undefined,
   error: null,
 });
@@ -41,8 +58,14 @@ export function useAuth(): AuthContextValue {
 }
 
 function AuthSession({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading, user, error, getAccessTokenSilently } =
-    useAuth0();
+  const {
+    isAuthenticated,
+    isLoading,
+    user,
+    error,
+    getAccessTokenSilently,
+    logout,
+  } = useAuth0();
 
   // Token disimpan di state (beserta `sub` user-nya) agar `tokenReady` bisa
   // diturunkan dan selalu sinkron dengan user yang sedang aktif.
@@ -50,6 +73,14 @@ function AuthSession({ children }: { children: ReactNode }) {
     sub: string | undefined;
     token: string | null;
   }>({ sub: undefined, token: null });
+
+  /**
+   * Menjadi `true` ketika access token gagal diperoleh/di-refresh — hampir
+   * selalu berarti sesi sudah berakhir (refresh token kedaluwarsa). Tanpa ini,
+   * SDK Auth0 tetap melaporkan `isAuthenticated: true` dari cache lokal yang
+   * usang sehingga `RequireAuth` terjebak di layar loading selamanya.
+   */
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Simpan handler refresh token terbaru agar `lib/api.ts` selalu memakai versi
   // mutakhir dari SDK tanpa memicu re-render berlebihan.
@@ -60,30 +91,70 @@ function AuthSession({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setTokenRefreshFn(() => getTokenRef.current());
-    return () => setTokenRefreshFn(null);
+    // Jalur API (401 / refresh gagal) juga bisa menandai sesi sudah berakhir.
+    setSessionExpiredHandler(() => setSessionExpired(true));
+    return () => {
+      setTokenRefreshFn(null);
+      setSessionExpiredHandler(null);
+    };
   }, []);
+
+  // Ketika sesi dinyatakan berakhir, bersihkan cache Auth0 lokal tanpa membuka
+  // halaman logout Auth0 (`openUrl: false`). SDK lalu mengeset
+  // `isAuthenticated` menjadi `false`; state lokal di-reset di sini supaya
+  // reload berikutnya mulai dari keadaan bersih, tidak mengulang loading macet.
+  useEffect(() => {
+    if (!sessionExpired) return;
+    logout({ openUrl: false })
+      .then(() => {
+        setSession({ sub: undefined, token: null });
+        setSessionExpired(false);
+      })
+      .catch(() => {
+        // UI sudah mengarahkan ke layar login; kegagalan logout tidak kritis.
+      });
+  }, [sessionExpired, logout]);
 
   // Ambil access token setelah login dan perbarui saat user/sub berubah.
   useEffect(() => {
     if (!isAuthenticated) {
+      // State `session`/`sessionExpired` di-reset di effect logout di atas;
+      // di sini cukup bersihkan token modul-level.
       setAccessToken(null);
       return;
     }
     let cancelled = false;
+    let settled = false;
+    // Jaring pengaman: kalau silent auth menggantung, jangan biarkan layar
+    // loading tampil selamanya.
+    const timeoutId = setTimeout(() => {
+      if (settled || cancelled) return;
+      settled = true;
+      setAccessToken(null);
+      setSession({ sub: user?.sub, token: null });
+      setSessionExpired(true);
+    }, TOKEN_FETCH_TIMEOUT_MS);
     getTokenRef
       .current()
       .then((token) => {
-        if (cancelled) return;
+        if (settled || cancelled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         setAccessToken(token);
         setSession({ sub: user?.sub, token });
+        setSessionExpired(false);
       })
       .catch(() => {
-        if (cancelled) return;
+        if (settled || cancelled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         setAccessToken(null);
         setSession({ sub: user?.sub, token: null });
+        setSessionExpired(true);
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [isAuthenticated, user?.sub]);
 
@@ -95,10 +166,11 @@ function AuthSession({ children }: { children: ReactNode }) {
       isAuthenticated,
       isReady: !isLoading,
       tokenReady,
+      sessionExpired,
       user,
       error: error?.message ?? null,
     }),
-    [isAuthenticated, isLoading, tokenReady, user, error]
+    [isAuthenticated, isLoading, tokenReady, sessionExpired, user, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

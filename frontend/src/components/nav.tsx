@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getMe } from "@/lib/api";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "@/components/providers";
 import type { LucideIcon } from "lucide-react";
 import { LayoutDashboard, List, LogIn, LogOut, Menu, TreePine, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,12 +54,16 @@ export default function Nav() {
   const router = useRouter();
   const {
     user,
-    isAuthenticated,
     isLoading: isAuthLoading,
     loginWithRedirect,
     logout,
   } = useAuth0();
+  // Status efektif dari context — saat sesi berakhir (`sessionExpired`),
+  // menu harus menampilkan opsi "Masuk" alih-alih informasi pengguna yang usang.
+  const { isAuthenticated, sessionExpired } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  const loggedIn = isAuthenticated && !sessionExpired;
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +149,7 @@ export default function Nav() {
             {!isAuthLoading && (
               <>
                 <DropdownMenuSeparator />
-                {isAuthenticated ? (
+                {loggedIn ? (
                   <DropdownMenuGroup>
                     <div className="px-1.5 py-1">
                       <p className="truncate text-sm font-medium leading-tight">
