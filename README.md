@@ -136,7 +136,8 @@ Fitur menautkan akun user ke anggota silsilah **hanya bisa diakses admin** (`ADM
    (field `relation`). **Admin & PIC tidak perlu memilih** — anggota yang ditambah dibuat
    tanpa relasi otomatis (bisa dihubungkan manual lewat halaman edit). Khusus **PIC**, anggota
    baru otomatis masuk ke semua group-nya. Tombol "Tambah Anggota" di UI hanya tampil untuk
-   user yang berhak.
+   user yang berhak. Halaman `/members/add` juga dilindungi — user belum tertaut yang membuka
+   URL-nya langsung melihat pesan "Akses Dibatasi" (form tidak dirender).
 
 ## 🔌 API Backend
 

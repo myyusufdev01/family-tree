@@ -45,6 +45,7 @@ export default function AddMemberPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [meLoading, setMeLoading] = useState(true);
   const [form, setForm] = useState({
     name: "",
     gender: "male" as "male" | "female",
@@ -74,6 +75,8 @@ export default function AddMemberPage() {
         if (!cancelled) setMe(data);
       } catch {
         if (!cancelled) setMe(null);
+      } finally {
+        if (!cancelled) setMeLoading(false);
       }
     })();
     return () => {
@@ -84,6 +87,10 @@ export default function AddMemberPage() {
   const isAdmin = me?.is_admin ?? false;
   const isPic = me?.member?.is_pic ?? false;
   const canPickAnyRelation = isAdmin || isPic;
+  // Hanya user yang akun Auth0-nya sudah tertaut ke anggota silsilah (atau
+  // admin) yang boleh membuka halaman tambah anggota — sama dengan aturan
+  // backend di POST /api/members dan tombol "Tambah Anggota".
+  const canAdd = isAdmin || Boolean(me?.member);
 
   // Muat daftar group untuk admin (dipakai di bagian "Group User").
   useEffect(() => {
@@ -192,6 +199,42 @@ export default function AddMemberPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Guard akses: user belum tertaut (bukan admin) tidak boleh melihat form —
+  // dialihkan ke pesan penjelasan. Backend tetap memblokir 403 sebagai lapisan
+  // keamanan terakhir.
+  if (meLoading) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!canAdd) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>🔒 Akses Dibatasi</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Hanya user yang akunnya sudah <b>tertaut ke anggota silsilah</b>{" "}
+              yang dapat menambah anggota baru.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Akun Anda belum ditautkan ke anggota silsilah. Hubungi admin untuk
+              menautkan akun Anda terlebih dahulu.
+            </p>
+            <Button type="button" onClick={() => router.push("/")}>
+              ← Kembali ke Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
