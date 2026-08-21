@@ -18,6 +18,8 @@ export interface Member {
   group_ids: string[];
   /** User berstatus PIC (Person In Charge) — bisa menambah anggota (otomatis masuk group-nya) dan membuat koneksi antar user di group yang sama. */
   is_pic: boolean;
+  /** (Dihitung server-side, tidak disimpan di Firestore) true jika akun Auth0 anggota termasuk daftar admin (`ADMIN_SUBS`). */
+  is_admin?: boolean;
 }
 
 export interface FamilyTree {

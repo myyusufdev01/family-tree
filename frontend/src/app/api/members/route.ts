@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { isAdmin } from "@/lib/config";
+import { getAdminSubs, isAdmin } from "@/lib/config";
 import {
   addMember,
   countMembers,
@@ -12,6 +12,7 @@ import {
   setMemberGroups,
 } from "@/lib/firestore";
 import { errorResponse, HttpError } from "@/lib/http";
+import { withAdminFlag } from "@/lib/member";
 import type { Member } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -45,7 +46,8 @@ export async function GET(req: NextRequest) {
     const totalPages = total > 0 ? Math.ceil(total / perPage) : 0;
 
     return NextResponse.json({
-      members,
+      // Tandai anggota yang termasuk admin (ADMIN_SUBS) untuk tag di UI.
+      members: withAdminFlag(members, getAdminSubs()),
       page,
       per_page: perPage,
       has_more: hasMore,

@@ -21,6 +21,41 @@ import type { Group, Member } from "@/lib/types";
 
 const PER_PAGE = 20;
 
+/** Tag status di samping nama: 🔑 login, 🛡️ admin, ⭐ PIC. */
+function MemberStatusBadges({ member }: { member: Member }) {
+  return (
+    <>
+      {member.auth0_sub && (
+        <Badge
+          variant="outline"
+          className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+          title="Anggota ini sudah punya akun login (tertaut User ID Auth0)"
+        >
+          🔑 Login
+        </Badge>
+      )}
+      {member.is_admin && (
+        <Badge
+          variant="outline"
+          className="border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700/60 dark:bg-sky-950/40 dark:text-sky-400"
+          title="Anggota ini berstatus admin"
+        >
+          🛡️ Admin
+        </Badge>
+      )}
+      {member.is_pic && (
+        <Badge
+          variant="outline"
+          className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-400"
+          title="Anggota ini berstatus PIC (Person In Charge)"
+        >
+          ⭐ PIC
+        </Badge>
+      )}
+    </>
+  );
+}
+
 export default function MemberTable() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +155,12 @@ export default function MemberTable() {
           </Button>
         </div>
 
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>🔑 = Punya akses login</span>
+          <span>🛡️ = Admin</span>
+          <span>⭐ = PIC</span>
+        </div>
+
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -147,9 +188,12 @@ export default function MemberTable() {
                 return (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">
-                      <Link href={`/members/${m.id}`} className="hover:underline">
-                        {m.gender === "male" ? "👨" : "👩"} {m.name}
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <Link href={`/members/${m.id}`} className="hover:underline">
+                          {m.gender === "male" ? "👨" : "👩"} {m.name}
+                        </Link>
+                        <MemberStatusBadges member={m} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       {groupsOfMember.length > 0 ? (

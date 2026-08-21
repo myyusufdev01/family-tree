@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { getAdminSubs } from "@/lib/config";
 import { searchMembers } from "@/lib/firestore";
 import { errorResponse, HttpError } from "@/lib/http";
+import { withAdminFlag } from "@/lib/member";
 
 export const runtime = "nodejs";
 
@@ -14,7 +16,8 @@ export async function GET(req: NextRequest) {
     if (!q.trim()) throw new HttpError(422, "q wajib diisi");
 
     const results = await searchMembers(userId, q);
-    return NextResponse.json({ results });
+    // Tandai anggota yang termasuk admin (ADMIN_SUBS) untuk tag di UI.
+    return NextResponse.json({ results: withAdminFlag(results, getAdminSubs()) });
   } catch (err) {
     return errorResponse(err);
   }

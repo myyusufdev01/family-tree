@@ -61,3 +61,15 @@ function strArray(value: unknown): string[] {
 export function shareGroup(a: { group_ids: string[] }, b: { group_ids: string[] }): boolean {
   return a.group_ids.some((gid) => b.group_ids.includes(gid));
 }
+
+/**
+ * Tandai anggota mana yang akun Auth0-nya (`auth0_sub`) termasuk daftar admin
+ * (`ADMIN_SUBS`). Dipakai route daftar & pencarian anggota supaya frontend bisa
+ * menampilkan tag "Admin" di halaman daftar. Murni fungsi murni — mudah di-test.
+ */
+export function withAdminFlag(members: Member[], adminSubs: Set<string>): Member[] {
+  return members.map((m) => ({
+    ...m,
+    is_admin: Boolean(m.auth0_sub && adminSubs.has(m.auth0_sub)),
+  }));
+}
